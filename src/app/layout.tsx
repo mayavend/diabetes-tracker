@@ -45,6 +45,12 @@ export default function RootLayout({
               >
                 Log Entry
               </Link>
+              <Link
+                href="/trends"
+                className="rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              >
+                Trends
+              </Link>
             </nav>
           </header>
           <main>{children}</main>
