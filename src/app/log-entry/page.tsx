@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Entry, saveEntry } from "@/lib/entries";
+import { Entry, READING_TYPES, saveEntry } from "@/lib/entries";
 
 type FormState = {
+  timestamp: string;
+  readingType: Entry["readingType"];
   glucose: string;
   mealNote: string;
   exerciseNote: string;
@@ -13,6 +15,8 @@ type FormState = {
 };
 
 const initialFormState: FormState = {
+  timestamp: new Date().toISOString().slice(0, 16),
+  readingType: "",
   glucose: "",
   mealNote: "",
   exerciseNote: "",
@@ -31,6 +35,10 @@ export default function LogEntryPage() {
     const entry: Entry = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
+      timestamp: form.timestamp
+        ? new Date(form.timestamp).toISOString()
+        : new Date().toISOString(),
+      readingType: form.readingType,
       glucose: form.glucose ? Number(form.glucose) : null,
       mealNote: form.mealNote.trim(),
       exerciseNote: form.exerciseNote.trim(),
@@ -52,6 +60,43 @@ export default function LogEntryPage() {
         onSubmit={handleSubmit}
         className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
       >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-slate-700">Date & Time</span>
+            <input
+              type="datetime-local"
+              value={form.timestamp}
+              onChange={(event) => {
+                setSuccessMessage("");
+                setForm((current) => ({ ...current, timestamp: event.target.value }));
+              }}
+              className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-slate-700">Reading Type</span>
+            <select
+              value={form.readingType}
+              onChange={(event) => {
+                setSuccessMessage("");
+                setForm((current) => ({
+                  ...current,
+                  readingType: event.target.value as Entry["readingType"],
+                }));
+              }}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 outline-none ring-sky-200 focus:ring"
+            >
+              <option value="">Select type</option>
+              {READING_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-slate-700">Glucose (mg/dL)</span>

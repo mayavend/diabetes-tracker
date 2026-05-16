@@ -16,7 +16,8 @@ export default function TrendsPage() {
         .filter((entry): entry is Entry & { glucose: number } => entry.glucose !== null)
         .sort(
           (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+            new Date(a.timestamp || a.createdAt).getTime() -
+            new Date(b.timestamp || b.createdAt).getTime(),
         ),
     [entries],
   );
@@ -38,7 +39,14 @@ export default function TrendsPage() {
         CHART_HEIGHT -
         PADDING -
         ((entry.glucose - minValue) / valueRange) * (CHART_HEIGHT - PADDING * 2);
-      return { x, y, value: entry.glucose, date: entry.createdAt, id: entry.id };
+      return {
+        x,
+        y,
+        value: entry.glucose,
+        date: entry.timestamp || entry.createdAt,
+        type: entry.readingType || "--",
+        id: entry.id,
+      };
     });
   }, [glucoseEntries]);
 
@@ -90,7 +98,8 @@ export default function TrendsPage() {
                   <g key={point.id}>
                     <circle cx={point.x} cy={point.y} r={3.5} className="fill-sky-600" />
                     <title>
-                      {new Date(point.date).toLocaleDateString()}: {point.value} mg/dL
+                      {new Date(point.date).toLocaleString()} ({point.type}):{" "}
+                      {point.value} mg/dL
                     </title>
                   </g>
                 ))}
@@ -104,7 +113,8 @@ export default function TrendsPage() {
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Timestamp</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
                     <th className="px-4 py-3 font-medium">Glucose (mg/dL)</th>
                   </tr>
                 </thead>
@@ -112,7 +122,12 @@ export default function TrendsPage() {
                   {[...glucoseEntries].reverse().map((entry) => (
                     <tr key={entry.id} className="border-t border-slate-100">
                       <td className="px-4 py-3 text-slate-700">
-                        {new Date(entry.createdAt).toLocaleDateString()}
+                        {new Date(
+                          entry.timestamp || entry.createdAt,
+                        ).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {entry.readingType || "--"}
                       </td>
                       <td className="px-4 py-3 text-slate-700">{entry.glucose}</td>
                     </tr>

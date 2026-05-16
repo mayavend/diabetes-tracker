@@ -52,7 +52,8 @@ export default function Home() {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
-                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 font-medium">Timestamp</th>
+                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Glucose</th>
                 <th className="px-4 py-3 font-medium">Sleep</th>
                 <th className="px-4 py-3 font-medium">Meal</th>
@@ -63,7 +64,7 @@ export default function Home() {
             <tbody>
               {entries.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                     No entries yet. Add your first log from the Log Entry page.
                   </td>
                 </tr>
@@ -71,7 +72,10 @@ export default function Home() {
                 entries.slice(0, 8).map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 text-slate-700">
-                      {new Date(entry.createdAt).toLocaleDateString()}
+                      {new Date(entry.timestamp || entry.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {entry.readingType || "--"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {entry.glucose ?? "--"}
