@@ -51,6 +51,12 @@ export default function RootLayout({
               >
                 Trends
               </Link>
+              <Link
+                href="/report"
+                className="rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              >
+                Report
+              </Link>
             </nav>
           </header>
           <main>{children}</main>
