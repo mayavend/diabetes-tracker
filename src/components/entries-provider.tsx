@@ -18,7 +18,10 @@ import {
 
 type EntriesContextValue = {
   addEntry: (entry: Entry) => void;
+  cancelEditingEntry: () => void;
+  editingEntry: Entry | null;
   deleteEntry: (entryId: string) => void;
+  startEditingEntry: (entry: Entry) => void;
   entries: Entry[];
   isClientReady: boolean;
   updateEntry: (entry: Entry) => void;
@@ -28,6 +31,7 @@ const EntriesContext = createContext<EntriesContextValue | null>(null);
 
 export function EntriesProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [isClientReady, setIsClientReady] = useState(false);
 
   useEffect(() => {
@@ -55,16 +59,27 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       addEntry(entry) {
         setEntries(saveEntry(entry));
       },
+      cancelEditingEntry() {
+        setEditingEntry(null);
+      },
+      editingEntry,
       deleteEntry(entryId) {
         setEntries(deleteSavedEntry(entryId));
+        setEditingEntry((current) =>
+          current?.id === entryId ? null : current,
+        );
+      },
+      startEditingEntry(entry) {
+        setEditingEntry(entry);
       },
       entries,
       isClientReady,
       updateEntry(entry) {
         setEntries(updateSavedEntry(entry));
+        setEditingEntry(null);
       },
     }),
-    [entries, isClientReady],
+    [editingEntry, entries, isClientReady],
   );
 
   return (

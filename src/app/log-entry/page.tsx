@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Entry, READING_TYPES } from "@/lib/entries";
 import { useClientEntries } from "@/lib/use-client-entries";
 
@@ -33,30 +34,58 @@ function getCurrentTimestampInputValue() {
   return localTime.toISOString().slice(0, 16);
 }
 
+function createFormStateFromEntry(entry: Entry): FormState {
+  return {
+    timestamp: entry.timestamp
+      ? getCurrentTimestampInputValueFromStored(entry.timestamp)
+      : getCurrentTimestampInputValue(),
+    readingType: entry.readingType,
+    glucose: entry.glucose?.toString() ?? "",
+    mealNote: entry.mealNote,
+    exerciseNote: entry.exerciseNote,
+    sleepHours: entry.sleepHours?.toString() ?? "",
+    medication: entry.medication,
+    notes: entry.notes,
+  };
+}
+
+function getCurrentTimestampInputValueFromStored(timestamp: string) {
+  const date = new Date(timestamp);
+  const offset = date.getTimezoneOffset();
+  const localTime = new Date(date.getTime() - offset * 60 * 1000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 export default function LogEntryPage() {
-  const { addEntry } = useClientEntries();
+  const router = useRouter();
+  const { addEntry, cancelEditingEntry, editingEntry, updateEntry } =
+    useClientEntries();
   const [form, setForm] = useState<FormState>(initialFormState);
   const [successMessage, setSuccessMessage] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
-      setForm((current) => ({
-        ...current,
-        timestamp: current.timestamp || getCurrentTimestampInputValue(),
-      }));
+      setForm(
+        editingEntry
+          ? createFormStateFromEntry(editingEntry)
+          : {
+              ...initialFormState,
+              timestamp: getCurrentTimestampInputValue(),
+            },
+      );
       setIsClientReady(true);
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, []);
+  }, [editingEntry]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const entry: Entry = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      id: editingEntry?.id ?? crypto.randomUUID(),
+      createdAt: editingEntry?.createdAt ?? new Date().toISOString(),
       timestamp: form.timestamp
         ? new Date(form.timestamp).toISOString()
         : new Date().toISOString(),
@@ -69,17 +98,54 @@ export default function LogEntryPage() {
       notes: form.notes.trim(),
     };
 
-    addEntry(entry);
+    if (editingEntry) {
+      updateEntry(entry);
+      setSuccessMessage("Entry updated successfully.");
+      router.push("/");
+    } else {
+      addEntry(entry);
+      setSuccessMessage("Entry saved successfully.");
+    }
+
     setForm({
       ...initialFormState,
       timestamp: getCurrentTimestampInputValue(),
     });
-    setSuccessMessage("Entry saved successfully.");
+    cancelEditingEntry();
+  }
+
+  function handleCancelEdit() {
+    cancelEditingEntry();
+    setForm({
+      ...initialFormState,
+      timestamp: getCurrentTimestampInputValue(),
+    });
+    setSuccessMessage("");
   }
 
   return (
     <div>
-      <h2 className="mb-5 text-2xl font-semibold">Log Entry</h2>
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold">
+            {editingEntry ? "Editing Entry" : "Log Entry"}
+          </h2>
+          {editingEntry ? (
+            <p className="mt-1 text-sm text-slate-600">
+              Update the existing entry and save changes.
+            </p>
+          ) : null}
+        </div>
+        {editingEntry ? (
+          <button
+            type="button"
+            onClick={handleCancelEdit}
+            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel Edit
+          </button>
+        ) : null}
+      </div>
 
       <form
         onSubmit={handleSubmit}
@@ -226,7 +292,7 @@ export default function LogEntryPage() {
           disabled={!isClientReady}
           className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
         >
-          Save Entry
+          {editingEntry ? "Save Changes" : "Save Entry"}
         </button>
       </form>
     </div>

@@ -1,86 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { SummaryCard } from "@/components/summary-card";
 import { computeGlucoseAnalytics, formatMetric } from "@/lib/analytics";
-import { Entry, READING_TYPES } from "@/lib/entries";
 import { useClientEntries } from "@/lib/use-client-entries";
 
-type EditFormState = {
-  exerciseNote: string;
-  glucose: string;
-  mealNote: string;
-  medication: string;
-  notes: string;
-  readingType: Entry["readingType"];
-  sleepHours: string;
-  timestamp: string;
-};
-
-function formatTimestampForInput(timestamp: string) {
-  const date = new Date(timestamp);
-  const offset = date.getTimezoneOffset();
-  const localTime = new Date(date.getTime() - offset * 60 * 1000);
-  return localTime.toISOString().slice(0, 16);
-}
-
-function createEditFormState(entry: Entry): EditFormState {
-  return {
-    exerciseNote: entry.exerciseNote,
-    glucose: entry.glucose?.toString() ?? "",
-    mealNote: entry.mealNote,
-    medication: entry.medication,
-    notes: entry.notes,
-    readingType: entry.readingType,
-    sleepHours: entry.sleepHours?.toString() ?? "",
-    timestamp: formatTimestampForInput(entry.timestamp || entry.createdAt),
-  };
-}
-
 export default function Home() {
-  const { deleteEntry, entries, isClientReady, updateEntry } = useClientEntries();
+  const router = useRouter();
+  const { deleteEntry, entries, isClientReady, startEditingEntry } =
+    useClientEntries();
   const analytics = computeGlucoseAnalytics(entries);
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditFormState | null>(null);
   const [tableMessage, setTableMessage] = useState("");
-  const activeEditingEntry = editingEntryId
-    ? analytics.sortedEntries.find((entry) => entry.id === editingEntryId) ?? null
-    : null;
 
-  function startEditing(entry: Entry) {
-    setEditingEntryId(entry.id);
-    setEditForm(createEditFormState(entry));
+  function handleEdit(entry: (typeof analytics.sortedEntries)[number]) {
+    startEditingEntry(entry);
     setTableMessage("");
-  }
-
-  function cancelEditing() {
-    setEditingEntryId(null);
-    setEditForm(null);
-  }
-
-  function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editingEntryId || !editForm) return;
-
-    const originalEntry = analytics.sortedEntries.find((entry) => entry.id === editingEntryId);
-    if (!originalEntry) return;
-
-    updateEntry({
-      ...originalEntry,
-      timestamp: editForm.timestamp
-        ? new Date(editForm.timestamp).toISOString()
-        : originalEntry.timestamp,
-      readingType: editForm.readingType,
-      glucose: editForm.glucose ? Number(editForm.glucose) : null,
-      mealNote: editForm.mealNote.trim(),
-      exerciseNote: editForm.exerciseNote.trim(),
-      sleepHours: editForm.sleepHours ? Number(editForm.sleepHours) : null,
-      medication: editForm.medication.trim(),
-      notes: editForm.notes.trim(),
-    });
-
-    setTableMessage("Entry updated.");
-    cancelEditing();
+    router.push("/log-entry");
   }
 
   function handleDelete(entryId: string) {
@@ -88,9 +24,6 @@ export default function Home() {
     if (!confirmed) return;
 
     deleteEntry(entryId);
-    if (editingEntryId === entryId) {
-      cancelEditing();
-    }
     setTableMessage("Entry deleted.");
   }
 
@@ -250,7 +183,7 @@ export default function Home() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => startEditing(entry)}
+                          onClick={() => handleEdit(entry)}
                           className="text-sm font-medium text-sky-700 hover:text-sky-800"
                         >
                           Edit
@@ -270,167 +203,6 @@ export default function Home() {
             </tbody>
           </table>
         </div>
-
-        {activeEditingEntry && editForm ? (
-          <form
-            onSubmit={handleEditSubmit}
-            className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <h4 className="text-base font-semibold">Edit Entry</h4>
-              <button
-                type="button"
-                onClick={cancelEditing}
-                className="text-sm text-slate-500 hover:text-slate-700"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-slate-700">Date & Time</span>
-                <input
-                  type="datetime-local"
-                  value={editForm.timestamp}
-                  onChange={(event) =>
-                    setEditForm((current) =>
-                      current
-                        ? { ...current, timestamp: event.target.value }
-                        : current,
-                    )
-                  }
-                  className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-slate-700">Reading Type</span>
-                <select
-                  value={editForm.readingType}
-                  onChange={(event) =>
-                    setEditForm((current) =>
-                      current
-                        ? {
-                            ...current,
-                            readingType: event.target.value as Entry["readingType"],
-                          }
-                        : current,
-                    )
-                  }
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 outline-none ring-sky-200 focus:ring"
-                >
-                  <option value="">Select type</option>
-                  {READING_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-slate-700">Glucose (mg/dL)</span>
-                <input
-                  type="number"
-                  value={editForm.glucose}
-                  onChange={(event) =>
-                    setEditForm((current) =>
-                      current ? { ...current, glucose: event.target.value } : current,
-                    )
-                  }
-                  className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-slate-700">Sleep Hours</span>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={editForm.sleepHours}
-                  onChange={(event) =>
-                    setEditForm((current) =>
-                      current
-                        ? { ...current, sleepHours: event.target.value }
-                        : current,
-                    )
-                  }
-                  className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-                />
-              </label>
-            </div>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-slate-700">Meal Note</span>
-              <input
-                type="text"
-                value={editForm.mealNote}
-                onChange={(event) =>
-                  setEditForm((current) =>
-                    current ? { ...current, mealNote: event.target.value } : current,
-                  )
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-slate-700">Exercise Note</span>
-              <input
-                type="text"
-                value={editForm.exerciseNote}
-                onChange={(event) =>
-                  setEditForm((current) =>
-                    current
-                      ? { ...current, exerciseNote: event.target.value }
-                      : current,
-                  )
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-slate-700">Medication</span>
-              <input
-                type="text"
-                value={editForm.medication}
-                onChange={(event) =>
-                  setEditForm((current) =>
-                    current
-                      ? { ...current, medication: event.target.value }
-                      : current,
-                  )
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-slate-700">Notes</span>
-              <textarea
-                rows={4}
-                value={editForm.notes}
-                onChange={(event) =>
-                  setEditForm((current) =>
-                    current ? { ...current, notes: event.target.value } : current,
-                  )
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
-            >
-              Save Changes
-            </button>
-          </form>
-        ) : null}
       </section>
     </div>
   );
