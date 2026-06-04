@@ -78,9 +78,32 @@ export function getEntries(): Entry[] {
   }
 }
 
+export function writeEntries(entries: Entry[]) {
+  window.localStorage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(entries));
+  return entries;
+}
+
 export function saveEntry(entry: Entry): Entry[] {
   const existing = getEntries();
   const updated = [entry, ...existing];
-  window.localStorage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(updated));
-  return updated;
+  return writeEntries(updated);
+}
+
+export function updateSavedEntry(updatedEntry: Entry): Entry[] {
+  const updated = getEntries().map((entry) =>
+    entry.id === updatedEntry.id ? updatedEntry : entry,
+  );
+  return writeEntries(updated);
+}
+
+export function deleteSavedEntry(entryId: string): Entry[] {
+  const updated = getEntries().filter((entry) => entry.id !== entryId);
+  return writeEntries(updated);
+}
+
+export function replaceEntries(entries: Entry[]): Entry[] {
+  const normalized = entries
+    .map((entry) => normalizeEntry(entry))
+    .filter((entry): entry is Entry => entry !== null);
+  return writeEntries(normalized);
 }

@@ -8,6 +8,7 @@ const MIN_AFTER_MEAL_ENTRIES = 2;
 const HIGH_GLUCOSE_THRESHOLD = 160;
 const MIN_INSIGHTS = 3;
 const MAX_INSIGHTS = 5;
+const RECENT_ENTRY_COUNT = 3;
 
 export type TrendComparison = "improved" | "worsened" | "similar" | "not-enough-data";
 
@@ -143,14 +144,12 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
     glucoseEntries.filter((entry) => entry.readingType === "Before Meal"),
   );
   const averageBeforeMealGlucose = getAverage(beforeMealValues);
-  const mostRecentGlucoseEntries = glucoseEntries.slice(0, 3);
+  const mostRecentGlucoseEntries = glucoseEntries.slice(0, RECENT_ENTRY_COUNT);
   const recentElevatedCount = glucoseEntries.filter(
     (entry) =>
       entry.glucose > ELEVATED_GLUCOSE_THRESHOLD &&
       getEntryTimestamp(entry) >= now - DAY_WINDOW_MS,
   ).length;
-  const recentHigh = glucoseEntries[0] ?? null;
-  const recentLow = glucoseEntries.length > 1 ? glucoseEntries[glucoseEntries.length - 1] : null;
   const dominantReadingType = getMostCommonReadingType(sortedEntries);
 
   const primaryInsights: string[] = [];
@@ -207,7 +206,7 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
   } else if (elevatedCount > 0) {
     pushInsight(
       primaryInsights,
-      `You have ${elevatedCount} elevated glucose reading${elevatedCount === 1 ? "" : "s"} recorded overall.`,
+      `You have ${elevatedCount} elevated glucose reading${elevatedCount === 1 ? "" : "s"} across your recorded entries.`,
     );
   }
 
@@ -232,7 +231,7 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
     ) {
       pushInsight(
         primaryInsights,
-        `Your after-meal readings are running higher than your ${comparisonLabel} readings on average (${averageAfterMealGlucose.toFixed(0)} vs ${comparisonBaseline.toFixed(0)} mg/dL).`,
+        `Across your recorded entries, after-meal readings are running higher than ${comparisonLabel} readings on average (${averageAfterMealGlucose.toFixed(0)} vs ${comparisonBaseline.toFixed(0)} mg/dL).`,
       );
     } else if (
       averageAfterMealGlucose !== null &&
@@ -241,20 +240,20 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
     ) {
       pushInsight(
         primaryInsights,
-        `Your after-meal glucose is staying fairly close to your ${comparisonLabel} readings (${averageAfterMealGlucose.toFixed(0)} vs ${comparisonBaseline.toFixed(0)} mg/dL).`,
+        `Across your recorded entries, after-meal glucose is staying fairly close to ${comparisonLabel} readings (${averageAfterMealGlucose.toFixed(0)} vs ${comparisonBaseline.toFixed(0)} mg/dL).`,
       );
     }
   } else if (afterMealValues.length >= MIN_AFTER_MEAL_ENTRIES) {
     pushInsight(
       secondaryInsights,
-      `Your after-meal average was ${averageAfterMealGlucose?.toFixed(0)} mg/dL based on ${afterMealValues.length} readings.`,
+      `Across your recorded entries, your after-meal average was ${averageAfterMealGlucose?.toFixed(0)} mg/dL based on ${afterMealValues.length} readings.`,
     );
   }
 
   if (fastingValues.length >= MIN_FASTING_ENTRIES) {
     pushInsight(
       primaryInsights,
-      `Your fasting average is ${averageFastingGlucose?.toFixed(0)} mg/dL based on ${fastingValues.length} fasting entries.`,
+      `Across your recorded entries, your fasting average is ${averageFastingGlucose?.toFixed(0)} mg/dL based on ${fastingValues.length} fasting entries.`,
     );
   }
 
@@ -267,17 +266,17 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
     if (highGlucoseSleepAverage + 0.5 < lowerGlucoseSleepAverage) {
       pushInsight(
         primaryInsights,
-        `Your recent sleep average was lower on days with higher glucose readings (${highGlucoseSleepAverage.toFixed(1)} vs ${lowerGlucoseSleepAverage.toFixed(1)} hours).`,
+        `Across entries with both sleep and glucose logged, your sleep average was lower on days with higher glucose readings (${highGlucoseSleepAverage.toFixed(1)} vs ${lowerGlucoseSleepAverage.toFixed(1)} hours).`,
       );
     } else if (highGlucoseSleepAverage - 0.5 > lowerGlucoseSleepAverage) {
       pushInsight(
         secondaryInsights,
-        `Days with higher glucose readings also had slightly more recorded sleep on average (${highGlucoseSleepAverage.toFixed(1)} vs ${lowerGlucoseSleepAverage.toFixed(1)} hours), so the pattern is not straightforward.`,
+        `Across entries with both sleep and glucose logged, days with higher glucose readings also had slightly more sleep on average (${highGlucoseSleepAverage.toFixed(1)} vs ${lowerGlucoseSleepAverage.toFixed(1)} hours), so the pattern is not straightforward.`,
       );
     } else {
       pushInsight(
         secondaryInsights,
-        "Sleep duration looked fairly similar on days with higher and lower glucose readings.",
+        "Across entries with both sleep and glucose logged, sleep duration looked fairly similar on days with higher and lower glucose readings.",
       );
     }
   }
@@ -285,36 +284,32 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
   if (highestGlucose !== null && lowestGlucose !== null && glucoseRange !== null) {
     pushInsight(
       primaryInsights,
-      `Your recorded glucose ranged from ${lowestGlucose.toFixed(0)} to ${highestGlucose.toFixed(0)} mg/dL, a spread of ${glucoseRange.toFixed(0)} mg/dL.`,
+      `Across your recorded entries, glucose ranged from ${lowestGlucose.toFixed(0)} to ${highestGlucose.toFixed(0)} mg/dL, a spread of ${glucoseRange.toFixed(0)} mg/dL.`,
     );
   }
 
-  if (mostRecentGlucoseEntries.length >= 3) {
+  if (mostRecentGlucoseEntries.length >= RECENT_ENTRY_COUNT) {
     const recentNewest = mostRecentGlucoseEntries[0].glucose;
-    const recentOldest = mostRecentGlucoseEntries[2].glucose;
+    const recentOldest = mostRecentGlucoseEntries[RECENT_ENTRY_COUNT - 1].glucose;
 
     if (recentNewest <= recentOldest - 15) {
       pushInsight(
         primaryInsights,
-        `Your most recent glucose readings are trending lower than your last few earlier entries (${recentOldest.toFixed(0)} down to ${recentNewest.toFixed(0)} mg/dL).`,
+        `Across your most recent ${RECENT_ENTRY_COUNT} glucose readings, values trended lower (${recentOldest.toFixed(0)} down to ${recentNewest.toFixed(0)} mg/dL).`,
       );
     } else if (recentNewest >= recentOldest + 15) {
       pushInsight(
         primaryInsights,
-        `Your most recent glucose readings are trending higher than your last few earlier entries (${recentOldest.toFixed(0)} up to ${recentNewest.toFixed(0)} mg/dL).`,
+        `Across your most recent ${RECENT_ENTRY_COUNT} glucose readings, values trended higher (${recentOldest.toFixed(0)} up to ${recentNewest.toFixed(0)} mg/dL).`,
       );
     }
   }
 
-  if (recentHigh && recentLow && recentHigh.id !== recentLow.id) {
+  if (mostRecentGlucoseEntries.length > 0) {
+    const mostRecentReading = mostRecentGlucoseEntries[0];
     pushInsight(
       secondaryInsights,
-      `Your highest recent reading was ${recentHigh.glucose.toFixed(0)} mg/dL, while your lowest recorded reading was ${recentLow.glucose.toFixed(0)} mg/dL.`,
-    );
-  } else if (recentHigh) {
-    pushInsight(
-      secondaryInsights,
-      `Your most recent glucose reading was ${recentHigh.glucose.toFixed(0)} mg/dL.`,
+      `Your most recent recorded glucose reading was ${mostRecentReading.glucose.toFixed(0)} mg/dL.`,
     );
   }
 

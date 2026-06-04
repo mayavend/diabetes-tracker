@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Entry, READING_TYPES, saveEntry } from "@/lib/entries";
+import { Entry, READING_TYPES } from "@/lib/entries";
+import { useClientEntries } from "@/lib/use-client-entries";
 
 type FormState = {
   timestamp: string;
@@ -33,6 +34,7 @@ function getCurrentTimestampInputValue() {
 }
 
 export default function LogEntryPage() {
+  const { addEntry } = useClientEntries();
   const [form, setForm] = useState<FormState>(initialFormState);
   const [successMessage, setSuccessMessage] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
@@ -67,7 +69,7 @@ export default function LogEntryPage() {
       notes: form.notes.trim(),
     };
 
-    saveEntry(entry);
+    addEntry(entry);
     setForm({
       ...initialFormState,
       timestamp: getCurrentTimestampInputValue(),
