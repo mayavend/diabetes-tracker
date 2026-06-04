@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Entry, getEntries } from "@/lib/entries";
+import { useMemo } from "react";
+import { Entry } from "@/lib/entries";
+import { useClientEntries } from "@/lib/use-client-entries";
 
 const CHART_WIDTH = 760;
 const CHART_HEIGHT = 240;
 const PADDING = 24;
 
 export default function TrendsPage() {
-  const [entries] = useState<Entry[]>(() => getEntries());
+  const { entries, isClientReady } = useClientEntries();
 
   const glucoseEntries = useMemo(
     () =>
@@ -58,7 +59,11 @@ export default function TrendsPage() {
     <div>
       <h2 className="mb-5 text-2xl font-semibold">Trends</h2>
 
-      {glucoseEntries.length === 0 ? (
+      {!isClientReady ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
+          Loading glucose trends...
+        </div>
+      ) : glucoseEntries.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
           No glucose data yet. Add entries from the Log Entry page to see trends.
         </div>

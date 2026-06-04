@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { SummaryCard } from "@/components/summary-card";
 import { computeGlucoseAnalytics, formatMetric } from "@/lib/analytics";
-import { Entry, getEntries } from "@/lib/entries";
+import { useClientEntries } from "@/lib/use-client-entries";
 
 export default function Home() {
-  const [entries] = useState<Entry[]>(() => getEntries());
+  const { entries, isClientReady } = useClientEntries();
   const analytics = computeGlucoseAnalytics(entries);
 
   return (
@@ -15,59 +14,77 @@ export default function Home() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           label="Average Glucose"
-          value={formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })
+              : "Loading..."
+          }
         />
         <SummaryCard
           label="7-Day Average"
-          value={formatMetric(analytics.last7DaysAverage, { suffix: " mg/dL" })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.last7DaysAverage, { suffix: " mg/dL" })
+              : "Loading..."
+          }
         />
         <SummaryCard
           label="Avg Fasting"
-          value={formatMetric(analytics.averageFastingGlucose, {
-            suffix: " mg/dL",
-          })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.averageFastingGlucose, {
+                  suffix: " mg/dL",
+                })
+              : "Loading..."
+          }
         />
         <SummaryCard
           label="Elevated Readings"
-          value={String(analytics.elevatedCount)}
+          value={isClientReady ? String(analytics.elevatedCount) : "Loading..."}
         />
       </div>
 
       <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-semibold">Glucose Snapshot</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <p className="text-sm text-slate-500">After-Meal Average</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.averageAfterMealGlucose, {
-                suffix: " mg/dL",
-              })}
-            </p>
+        {isClientReady ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-sm text-slate-500">After-Meal Average</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.averageAfterMealGlucose, {
+                  suffix: " mg/dL",
+                })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Glucose Range</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Highest / Lowest</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.highestGlucose, { suffix: " mg/dL" })} /{" "}
+                {formatMetric(analytics.lowestGlucose, { suffix: " mg/dL" })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">7-Day Trend</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {analytics.comparisonLabel}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Previous:{" "}
+                {formatMetric(analytics.previous7DaysAverage, {
+                  suffix: " mg/dL",
+                })}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-slate-500">Glucose Range</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">Highest / Lowest</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.highestGlucose, { suffix: " mg/dL" })} /{" "}
-              {formatMetric(analytics.lowestGlucose, { suffix: " mg/dL" })}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">7-Day Trend</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {analytics.comparisonLabel}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              Previous:{" "}
-              {formatMetric(analytics.previous7DaysAverage, { suffix: " mg/dL" })}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">Loading glucose insights...</p>
+        )}
       </section>
 
       <section className="mt-8">
@@ -86,7 +103,13 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {analytics.sortedEntries.length === 0 ? (
+              {!isClientReady ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                    Loading recent entries...
+                  </td>
+                </tr>
+              ) : analytics.sortedEntries.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                     No entries yet. Add your first log from the Log Entry page.

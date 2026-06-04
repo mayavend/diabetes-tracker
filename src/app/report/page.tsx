@@ -7,14 +7,15 @@ import {
   computeGlucoseAnalytics,
   formatMetric,
 } from "@/lib/analytics";
-import { Entry, getEntries } from "@/lib/entries";
+import { Entry } from "@/lib/entries";
+import { useClientEntries } from "@/lib/use-client-entries";
 
 function getEntryTimestamp(entry: Entry) {
   return entry.timestamp || entry.createdAt;
 }
 
 export default function ReportPage() {
-  const [entries] = useState<Entry[]>(() => getEntries());
+  const { entries, isClientReady } = useClientEntries();
   const [copyMessage, setCopyMessage] = useState("");
   const analytics = computeGlucoseAnalytics(entries);
 
@@ -62,6 +63,7 @@ export default function ReportPage() {
   ].join("\n");
 
   async function handleCopyReport() {
+    if (!isClientReady) return;
     await navigator.clipboard.writeText(reportText);
     setCopyMessage("Report copied to clipboard.");
   }
@@ -78,6 +80,7 @@ export default function ReportPage() {
         <button
           type="button"
           onClick={handleCopyReport}
+          disabled={!isClientReady}
           className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
         >
           Copy Report
@@ -93,85 +96,105 @@ export default function ReportPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
           label="Average Glucose"
-          value={formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })
+              : "Loading..."
+          }
         />
         <SummaryCard
           label="Avg Fasting Glucose"
-          value={formatMetric(analytics.averageFastingGlucose, {
-            suffix: " mg/dL",
-          })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.averageFastingGlucose, {
+                  suffix: " mg/dL",
+                })
+              : "Loading..."
+          }
         />
         <SummaryCard
           label="Avg After-Meal"
-          value={formatMetric(analytics.averageAfterMealGlucose, {
-            suffix: " mg/dL",
-          })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.averageAfterMealGlucose, {
+                  suffix: " mg/dL",
+                })
+              : "Loading..."
+          }
         />
         <SummaryCard
           label="Elevated Readings"
-          value={String(analytics.elevatedCount)}
+          value={isClientReady ? String(analytics.elevatedCount) : "Loading..."}
         />
         <SummaryCard
           label="Total Entries"
-          value={String(analytics.totalEntries)}
+          value={isClientReady ? String(analytics.totalEntries) : "Loading..."}
         />
         <SummaryCard
           label="Average Sleep"
-          value={formatMetric(analytics.averageSleep, {
-            digits: 1,
-            suffix: " hrs",
-          })}
+          value={
+            isClientReady
+              ? formatMetric(analytics.averageSleep, {
+                  digits: 1,
+                  suffix: " hrs",
+                })
+              : "Loading..."
+          }
         />
       </div>
 
       <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-semibold">Glucose Analytics</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <p className="text-sm text-slate-500">Highest Glucose</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.highestGlucose, { suffix: " mg/dL" })}
-            </p>
+        {isClientReady ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <p className="text-sm text-slate-500">Highest Glucose</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.highestGlucose, { suffix: " mg/dL" })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Lowest Glucose</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.lowestGlucose, { suffix: " mg/dL" })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Glucose Range</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">7-Day Average</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.last7DaysAverage, { suffix: " mg/dL" })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Previous 7-Day Average</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {formatMetric(analytics.previous7DaysAverage, {
+                  suffix: " mg/dL",
+                })}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Weekly Comparison</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">
+                {analytics.comparisonLabel}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-slate-500">Lowest Glucose</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.lowestGlucose, { suffix: " mg/dL" })}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">Glucose Range</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">7-Day Average</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.last7DaysAverage, { suffix: " mg/dL" })}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">Previous 7-Day Average</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatMetric(analytics.previous7DaysAverage, {
-                suffix: " mg/dL",
-              })}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">Weekly Comparison</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {analytics.comparisonLabel}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">Loading report analytics...</p>
+        )}
       </section>
 
       <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-semibold">Weekly Summary</h3>
         <p className="mt-2 text-sm leading-6 text-slate-700">
-          {weeklySummary}
+          {isClientReady ? weeklySummary : "Loading weekly summary..."}
         </p>
       </section>
 
@@ -188,7 +211,13 @@ export default function ReportPage() {
               </tr>
             </thead>
             <tbody>
-              {analytics.sortedEntries.length === 0 ? (
+              {!isClientReady ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                    Loading recent entries...
+                  </td>
+                </tr>
+              ) : analytics.sortedEntries.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
                     No entries yet. Add your first log from the Log Entry page.

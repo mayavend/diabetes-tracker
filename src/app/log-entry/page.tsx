@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Entry, READING_TYPES, saveEntry } from "@/lib/entries";
 
 type FormState = {
@@ -15,7 +15,7 @@ type FormState = {
 };
 
 const initialFormState: FormState = {
-  timestamp: new Date().toISOString().slice(0, 16),
+  timestamp: "",
   readingType: "",
   glucose: "",
   mealNote: "",
@@ -25,9 +25,29 @@ const initialFormState: FormState = {
   notes: "",
 };
 
+function getCurrentTimestampInputValue() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  const localTime = new Date(now.getTime() - offset * 60 * 1000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 export default function LogEntryPage() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [successMessage, setSuccessMessage] = useState("");
+  const [isClientReady, setIsClientReady] = useState(false);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setForm((current) => ({
+        ...current,
+        timestamp: current.timestamp || getCurrentTimestampInputValue(),
+      }));
+      setIsClientReady(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,7 +68,10 @@ export default function LogEntryPage() {
     };
 
     saveEntry(entry);
-    setForm(initialFormState);
+    setForm({
+      ...initialFormState,
+      timestamp: getCurrentTimestampInputValue(),
+    });
     setSuccessMessage("Entry saved successfully.");
   }
 
@@ -72,6 +95,9 @@ export default function LogEntryPage() {
               }}
               className="rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
             />
+            {!isClientReady ? (
+              <span className="text-xs text-slate-500">Loading current time...</span>
+            ) : null}
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
@@ -195,6 +221,7 @@ export default function LogEntryPage() {
 
         <button
           type="submit"
+          disabled={!isClientReady}
           className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
         >
           Save Entry
