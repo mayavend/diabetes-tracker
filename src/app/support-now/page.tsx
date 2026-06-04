@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { useClientEntries } from "@/lib/use-client-entries";
@@ -11,14 +11,7 @@ import {
 } from "@/lib/support-episodes";
 import { useSupportEpisodes } from "@/lib/use-support-episodes";
 
-type SupportTool =
-  | "quick-log"
-  | "feelings"
-  | "low-support"
-  | "high-support"
-  | "emotional-support"
-  | "breathing"
-  | "emergency";
+type SupportTool = "quick-log" | "emotional-support" | "emergency";
 
 type QuickLogState = {
   currentGlucose: string;
@@ -47,6 +40,12 @@ const initialFeelingsState: FeelingsState = {
   includeInDoctorReport: false,
   thoughts: "",
 };
+
+const BREATHING_PHASES = [
+  { duration: 4, label: "Breathe In", scale: 1.14 },
+  { duration: 4, label: "Hold", scale: 1.14 },
+  { duration: 6, label: "Breathe Out", scale: 0.82 },
+] as const;
 
 function toggleFeeling(
   feelings: FeelingOption[],
@@ -145,6 +144,12 @@ export default function SupportNowPage() {
   const [quickLogForm, setQuickLogForm] = useState<QuickLogState>(initialQuickLogState);
   const [feelingsForm, setFeelingsForm] =
     useState<FeelingsState>(initialFeelingsState);
+  const [isBreathingActive, setIsBreathingActive] = useState(false);
+  const [breathingPhaseIndex, setBreathingPhaseIndex] = useState(0);
+  const [breathingSecondsRemaining, setBreathingSecondsRemaining] = useState(
+    BREATHING_PHASES[0].duration,
+  );
+  const [completedBreathingCycles, setCompletedBreathingCycles] = useState(0);
   const [pageMessage, setPageMessage] = useState("");
 
   const latestSupportEpisode = supportEpisodes[0] ?? null;
@@ -154,9 +159,68 @@ export default function SupportNowPage() {
       supportEpisodes.filter((episode) => episode.includeInDoctorReport).length,
     [supportEpisodes],
   );
+  const breathingPhase = BREATHING_PHASES[breathingPhaseIndex];
+  const breathingScale = isBreathingActive ? breathingPhase.scale : 0.82;
+  const breathingCycleLabel =
+    completedBreathingCycles >= 3
+      ? "Completed"
+      : `Cycle ${Math.min(completedBreathingCycles + 1, 3)} of 3`;
+
+  useEffect(() => {
+    if (!isBreathingActive || activeTool !== "emotional-support") return;
+
+    const timer = window.setTimeout(() => {
+      if (breathingSecondsRemaining > 1) {
+        setBreathingSecondsRemaining((current) => current - 1);
+        return;
+      }
+
+      const isLastPhase = breathingPhaseIndex === BREATHING_PHASES.length - 1;
+
+      if (isLastPhase) {
+        const nextCycles = completedBreathingCycles + 1;
+        if (nextCycles >= 3) {
+          setCompletedBreathingCycles(nextCycles);
+          setIsBreathingActive(false);
+          setBreathingPhaseIndex(0);
+          setBreathingSecondsRemaining(BREATHING_PHASES[0].duration);
+          return;
+        }
+
+        setCompletedBreathingCycles(nextCycles);
+      }
+
+      const nextPhaseIndex = isLastPhase ? 0 : breathingPhaseIndex + 1;
+      setBreathingPhaseIndex(nextPhaseIndex);
+      setBreathingSecondsRemaining(BREATHING_PHASES[nextPhaseIndex].duration);
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    activeTool,
+    breathingPhaseIndex,
+    breathingSecondsRemaining,
+    completedBreathingCycles,
+    isBreathingActive,
+  ]);
+
+  function resetBreathingExercise() {
+    setIsBreathingActive(false);
+    setBreathingPhaseIndex(0);
+    setBreathingSecondsRemaining(BREATHING_PHASES[0].duration);
+    setCompletedBreathingCycles(0);
+  }
+
+  function startBreathingExercise() {
+    resetBreathingExercise();
+    setIsBreathingActive(true);
+  }
 
   function closeTool() {
     setActiveTool(null);
+    resetBreathingExercise();
   }
 
   function handleQuickLogSave() {
@@ -253,31 +317,9 @@ export default function SupportNowPage() {
               onClick={() => setActiveTool("quick-log")}
             />
             <ActionCard
-              label="Feelings / Thoughts"
-              description="Capture emotions, reflection, and whether you want that note included in your doctor report."
-              onClick={() => setActiveTool("feelings")}
-              tone="cyan"
-            />
-            <ActionCard
-              label="Low Blood Sugar Support"
-              description="Gentle next-step reminders if this feels like a low."
-              onClick={() => setActiveTool("low-support")}
-            />
-            <ActionCard
-              label="High Blood Sugar Support"
-              description="A calm check-in for a higher reading and what to watch next."
-              onClick={() => setActiveTool("high-support")}
-            />
-            <ActionCard
               label="Emotional Support"
-              description="Supportive words for moments that feel scary, frustrating, or overwhelming."
+              description="A calmer space for breathing, emotions, supportive reflection, and choosing whether to include a note in the doctor report."
               onClick={() => setActiveTool("emotional-support")}
-              tone="cyan"
-            />
-            <ActionCard
-              label="Guided Breathing"
-              description="A short breathing and grounding prompt to help steady the moment."
-              onClick={() => setActiveTool("breathing")}
               tone="cyan"
             />
           </div>
@@ -463,191 +505,186 @@ export default function SupportNowPage() {
         </SupportModal>
       ) : null}
 
-      {activeTool === "feelings" ? (
-        <SupportModal
-          title="Feelings / Thoughts"
-          subtitle="This space is for reflection and emotional context. You can choose whether it stays private or appears in the doctor report."
-          onClose={closeTool}
-        >
-          <div className="rounded-[24px] border border-cyan-100 bg-cyan-50/60 p-5">
-            <p className="text-sm leading-6 text-slate-700">
-              Feeling anxious, frustrated, or overwhelmed in a glucose moment is
-              understandable. You do not need to explain it perfectly. A few honest
-              words can still be useful.
-            </p>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {FEELING_OPTIONS.map((feeling) => {
-              const selected = feelingsForm.emotions.includes(feeling);
-              return (
-                <button
-                  key={feeling}
-                  type="button"
-                  onClick={() =>
-                    setFeelingsForm((current) => ({
-                      ...current,
-                      emotions: toggleFeeling(current.emotions, feeling),
-                    }))
-                  }
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                    selected
-                      ? "bg-sky-500 text-white shadow-[0_12px_24px_rgba(14,165,233,0.22)]"
-                      : "border border-sky-100 bg-white text-sky-800 hover:bg-sky-50"
-                  }`}
-                >
-                  {feeling}
-                </button>
-              );
-            })}
-          </div>
-
-          <label className="mt-5 flex flex-col gap-2 text-sm">
-            <span className="font-medium text-slate-700">Thoughts and feelings</span>
-            <textarea
-              rows={5}
-              placeholder="Write what you are feeling, what felt hard, or what you want to remember."
-              value={feelingsForm.thoughts}
-              onChange={(event) =>
-                setFeelingsForm((current) => ({
-                  ...current,
-                  thoughts: event.target.value,
-                }))
-              }
-              className="rounded-2xl border border-sky-100 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
-            />
-          </label>
-
-          <div className="mt-5 flex flex-col gap-3 rounded-[24px] border border-sky-100 bg-sky-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <label className="flex items-center gap-3 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={feelingsForm.includeInDoctorReport}
-                onChange={(event) =>
-                  setFeelingsForm((current) => ({
-                    ...current,
-                    includeInDoctorReport: event.target.checked,
-                  }))
-                }
-                className="h-4 w-4 rounded border-sky-300 text-sky-500 focus:ring-sky-300"
-              />
-              Include in doctor report
-            </label>
-            <p className="text-sm text-slate-500">
-              Leave unchecked to keep this note private.
-            </p>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={handleFeelingsSave}
-              disabled={!isClientReady}
-              className="rounded-full bg-sky-500 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Save Feelings Note
-            </button>
-            <p className="text-sm text-slate-500">
-              Shared notes can appear in the provider report later.
-            </p>
-          </div>
-        </SupportModal>
-      ) : null}
-
-      {activeTool === "low-support" ? (
-        <SupportModal
-          title="Low Blood Sugar Support"
-          subtitle="A calm reset for a moment that may feel like a low."
-          onClose={closeTool}
-        >
-          <div className="space-y-4">
-            <div className="rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
-              <p className="text-base leading-7 text-slate-700">
-                If this feels like a low, take a slow breath and check your glucose
-                if you can. One possible next step is to follow your usual low-blood-
-                sugar care plan.
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-white/90 bg-white p-5 shadow-[0_14px_30px_rgba(148,163,184,0.08)]">
-              <ul className="space-y-3 text-sm leading-6 text-slate-700">
-                <li>Check your glucose if a reading is available.</li>
-                <li>Follow your own low-blood-sugar plan if you have one.</li>
-                <li>Recheck based on that plan and notice whether symptoms improve.</li>
-                <li>Get help quickly if symptoms feel severe or are not improving.</li>
-              </ul>
-            </div>
-          </div>
-        </SupportModal>
-      ) : null}
-
-      {activeTool === "high-support" ? (
-        <SupportModal
-          title="High Blood Sugar Support"
-          subtitle="A gentle check-in for a moment that may feel like a high."
-          onClose={closeTool}
-        >
-          <div className="space-y-4">
-            <div className="rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
-              <p className="text-base leading-7 text-slate-700">
-                If this feels like a high, it may help to log the reading, pause for
-                a moment, and think gently about what may have contributed.
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-white/90 bg-white p-5 shadow-[0_14px_30px_rgba(148,163,184,0.08)]">
-              <ul className="space-y-3 text-sm leading-6 text-slate-700">
-                <li>Recent food, stress, illness, or missed medication may be factors.</li>
-                <li>Recheck according to your usual care plan if that is available to you.</li>
-                <li>A quick log can make it easier to notice whether this pattern repeats.</li>
-                <li>Seek urgent help if symptoms feel severe.</li>
-              </ul>
-            </div>
-          </div>
-        </SupportModal>
-      ) : null}
-
       {activeTool === "emotional-support" ? (
         <SupportModal
           title="Emotional Support"
-          subtitle="Supportive words for moments when glucose concerns feel heavy."
+          subtitle="A supportive space for breathing, reflection, and choosing whether to include your note in the doctor report."
           onClose={closeTool}
         >
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <div className="rounded-[28px] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-sky-50/70 to-white p-5 sm:p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-700/70">
+                    Guided Breathing
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                    Follow the rhythm
+                  </h3>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+                    Let the circle guide you through a steady 4-4-6 pattern:
+                    breathe in, hold, and breathe out. The visual is meant to do
+                    the pacing for you.
+                  </p>
+                </div>
+                <div className="rounded-full border border-white/80 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm">
+                  {breathingCycleLabel}
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col items-center">
+                <div className="relative flex h-64 w-64 items-center justify-center sm:h-72 sm:w-72">
+                  <div className="absolute inset-6 rounded-full bg-sky-100/80 blur-2xl" />
+                  <div
+                    className="absolute inset-4 rounded-full border border-cyan-200/80 bg-white/55 shadow-[0_0_0_18px_rgba(186,230,253,0.35)] transition-transform ease-in-out"
+                    style={{
+                      transform: `scale(${breathingScale})`,
+                      transitionDuration: `${breathingPhase.duration}s`,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-10 rounded-full bg-gradient-to-br from-cyan-300 via-sky-300 to-blue-200 opacity-85 transition-transform ease-in-out"
+                    style={{
+                      transform: `scale(${breathingScale})`,
+                      transitionDuration: `${breathingPhase.duration}s`,
+                    }}
+                  />
+                  <div className="relative z-10 rounded-full border border-white/80 bg-white/85 px-8 py-8 text-center shadow-[0_20px_50px_rgba(148,163,184,0.18)] backdrop-blur-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700/70">
+                      Current Phase
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                      {isBreathingActive || completedBreathingCycles >= 3
+                        ? breathingPhase.label
+                        : "Ready"}
+                    </p>
+                    <p className="mt-3 text-5xl font-semibold tracking-tight text-slate-950">
+                      {isBreathingActive ? breathingSecondsRemaining : "4"}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      seconds
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-[24px] border border-white/80 bg-white/85 px-5 py-4 text-center shadow-[0_14px_30px_rgba(148,163,184,0.08)]">
+                  <p className="text-sm leading-6 text-slate-700">
+                    {completedBreathingCycles >= 3
+                      ? "You finished three calm breathing cycles. Stay here for another moment if that feels helpful."
+                      : isBreathingActive
+                        ? `${breathingPhase.label} for ${breathingPhase.duration} seconds, and let the motion set the pace.`
+                        : "Press start when you want the guided breathing visual to begin."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={isBreathingActive ? resetBreathingExercise : startBreathingExercise}
+                  className="rounded-full bg-amber-400 px-6 py-3.5 text-base font-semibold text-slate-900 shadow-[0_18px_36px_rgba(251,191,36,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-amber-300"
+                >
+                  {isBreathingActive ? "Reset Breathing" : "Start Breathing"}
+                </button>
+                <p className="text-sm text-slate-500">
+                  A slow breath can make the next decision feel a little more manageable.
+                </p>
+              </div>
+            </div>
+
             <div className="rounded-[24px] border border-cyan-100 bg-cyan-50/70 p-5">
               <p className="text-base leading-7 text-slate-700">
                 Feeling scared, frustrated, or overwhelmed right now is understandable.
                 You do not need to solve everything at once.
               </p>
-            </div>
-            <div className="rounded-[24px] border border-white/90 bg-white p-5 shadow-[0_14px_30px_rgba(148,163,184,0.08)]">
-              <ul className="space-y-3 text-sm leading-6 text-slate-700">
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
                 <li>Start with one next step instead of the whole picture.</li>
-                <li>A quick log or a feelings note can reduce the pressure to remember everything.</li>
+                <li>A quick log or a note here can reduce the pressure to remember everything.</li>
                 <li>If you need support, it is okay to reach out to someone you trust.</li>
               </ul>
             </div>
-          </div>
-        </SupportModal>
-      ) : null}
 
-      {activeTool === "breathing" ? (
-        <SupportModal
-          title="Guided Breathing"
-          subtitle="A short grounding prompt to help make the next decision feel more manageable."
-          onClose={closeTool}
-        >
-          <div className="space-y-4">
-            <div className="rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
-              <p className="text-base leading-7 text-slate-700">
-                Breathe in for 4, hold for 4, and breathe out for 6. Repeat that
-                three times.
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+                Feelings Check-In
               </p>
-            </div>
-            <div className="rounded-[24px] border border-white/90 bg-white p-5 shadow-[0_14px_30px_rgba(148,163,184,0.08)]">
-              <p className="text-sm leading-6 text-slate-700">
-                Then name 3 things you can see, 2 things you can feel, and 1 next
-                step you can take. Slowing the moment down may help make the next
-                choice feel clearer.
-              </p>
+              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                Capture what this moment feels like
+              </h3>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {FEELING_OPTIONS.map((feeling) => {
+                  const selected = feelingsForm.emotions.includes(feeling);
+                  return (
+                    <button
+                      key={feeling}
+                      type="button"
+                      onClick={() =>
+                        setFeelingsForm((current) => ({
+                          ...current,
+                          emotions: toggleFeeling(current.emotions, feeling),
+                        }))
+                      }
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+                        selected
+                          ? "bg-sky-500 text-white shadow-[0_12px_24px_rgba(14,165,233,0.22)]"
+                          : "border border-sky-100 bg-white text-sky-800 hover:bg-sky-50"
+                      }`}
+                    >
+                      {feeling}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <label className="mt-5 flex flex-col gap-2 text-sm">
+                <span className="font-medium text-slate-700">Thoughts and feelings</span>
+                <textarea
+                  rows={5}
+                  placeholder="Write what you are feeling, what felt hard, or what you want to remember."
+                  value={feelingsForm.thoughts}
+                  onChange={(event) =>
+                    setFeelingsForm((current) => ({
+                      ...current,
+                      thoughts: event.target.value,
+                    }))
+                  }
+                  className="rounded-2xl border border-sky-100 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                />
+              </label>
+
+              <div className="mt-5 flex flex-col gap-3 rounded-[24px] border border-sky-100 bg-sky-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-3 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={feelingsForm.includeInDoctorReport}
+                    onChange={(event) =>
+                      setFeelingsForm((current) => ({
+                        ...current,
+                        includeInDoctorReport: event.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-sky-300 text-sky-500 focus:ring-sky-300"
+                  />
+                  Include in doctor report
+                </label>
+                <p className="text-sm text-slate-500">
+                  Leave unchecked to keep this note private.
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={handleFeelingsSave}
+                  disabled={!isClientReady}
+                  className="rounded-full bg-sky-500 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Save Feelings Note
+                </button>
+                <p className="text-sm text-slate-500">
+                  Shared notes can appear in the provider report later.
+                </p>
+              </div>
             </div>
           </div>
         </SupportModal>
