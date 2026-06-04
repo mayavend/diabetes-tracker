@@ -1,3 +1,6 @@
+// Central analytics + rule-based insight engine for diaBEATes.
+// The rest of the app relies on these computed values staying consistent, so
+// dashboard cards, report copy, trends, Q&A, and insights all read from here.
 import { Entry } from "@/lib/entries";
 
 export const ELEVATED_GLUCOSE_THRESHOLD = 180;
@@ -61,6 +64,8 @@ export function formatMetric(
 }
 
 export function computeGlucoseAnalytics(entries: Entry[]) {
+  // Keep one canonical newest-first ordering so all downstream views refer to
+  // the same "recent" entries and avoid contradictory messaging.
   const sortedEntries = [...entries].sort(
     (a, b) => getEntryTimestamp(b) - getEntryTimestamp(a),
   );
@@ -79,6 +84,8 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
     .filter((value): value is number => value !== null);
 
   const now = Date.now();
+  // Rolling windows are based on the current client clock rather than calendar
+  // weeks so the app can compare "last 7 days" vs "previous 7 days" live.
   const last7DaysEntries = glucoseEntries.filter(
     (entry) => getEntryTimestamp(entry) >= now - DAY_WINDOW_MS,
   );
@@ -156,6 +163,8 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
   const secondaryInsights: string[] = [];
 
   function pushInsight(target: string[], insight: string) {
+    // Insight de-duplication matters because the same metric can support
+    // multiple observations and we want a concise, non-repetitive panel.
     if (!primaryInsights.includes(insight) && !secondaryInsights.includes(insight)) {
       target.push(insight);
     }
@@ -263,6 +272,9 @@ export function computeGlucoseAnalytics(entries: Entry[]) {
     highGlucoseSleepValues.length >= 2 &&
     lowerGlucoseSleepValues.length >= 2
   ) {
+    // Sleep observations are intentionally conservative. The app only mentions
+    // a pattern when both sides have multiple entries so a single outlier does
+    // not create an overconfident insight.
     if (highGlucoseSleepAverage + 0.5 < lowerGlucoseSleepAverage) {
       pushInsight(
         primaryInsights,

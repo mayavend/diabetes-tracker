@@ -1,5 +1,8 @@
 "use client";
 
+// Shared client-side store for emotional/support notes. This intentionally stays
+// separate from the main entry provider so the support feature can control
+// privacy and report inclusion independently.
 import {
   createContext,
   useContext,

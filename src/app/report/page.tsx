@@ -1,5 +1,7 @@
 "use client";
 
+// Provider-facing report page. This route turns the shared analytics layer and
+// user-selected support notes into a printable/copyable clinical-style summary.
 import { useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -50,6 +52,8 @@ function getTopInsights(insights: string[]) {
 }
 
 function getProviderSummary(analytics: ReturnType<typeof computeGlucoseAnalytics>) {
+  // This block intentionally surfaces only the highest-value findings so the
+  // top of the report reads like a quick provider handoff instead of a dashboard.
   const takeaways: string[] = [];
 
   if (analytics.comparison === "improved" && analytics.last7DaysAverage !== null) {
@@ -162,6 +166,8 @@ function getNotableEntries(entries: Entry[]) {
     glucoseEntries.find((entry) => entry.readingType === "Fasting") ?? null;
   const latestOverall = glucoseEntries[0] ?? null;
 
+  // This section is intentionally curated rather than exhaustive: it mixes
+  // extreme values with a few recent/contextual entries for quick review.
   [highest, lowest, latestAfterMealHigh, latestFasting, latestOverall].forEach(
     (entry) => {
       if (entry && !selected.some((item) => item.id === entry.id)) {
@@ -261,6 +267,8 @@ function getReportSummaryText({
   reportDate: string;
   sharedSupportNotes: SupportEpisode[];
 }) {
+  // The copied summary mirrors the on-screen report and print view so a user
+  // can share the same core information through multiple lightweight channels.
   return [
     "diaBEATes Provider Summary",
     `Report Date: ${reportDate}`,
@@ -341,6 +349,8 @@ export default function ReportPage() {
 
   function handlePrintPdf() {
     if (!reportReady) return;
+    // Browser print is the current free PDF export path. The page uses print
+    // styles so "Save as PDF" produces a cleaner provider-facing document.
     window.print();
   }
 
@@ -355,6 +365,9 @@ export default function ReportPage() {
   }
 
   function handlePrepareDraft() {
+    // The send flow is intentionally UI-only for now. It demonstrates the
+    // architecture for future backend/email integration without pretending the
+    // app can send protected medical information today.
     setSendMessage(
       "Prepared locally. Real email sending can be connected later with a secure backend or approved email service.",
     );

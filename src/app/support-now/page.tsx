@@ -1,5 +1,8 @@
 "use client";
 
+// Support Now provides quick-glance support tools for stressful glucose
+// moments. Quick Log writes into the main entry history, while emotional notes
+// stay separate unless the user opts into provider-report inclusion.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -169,6 +172,8 @@ export default function SupportNowPage() {
   useEffect(() => {
     if (!isBreathingActive || activeTool !== "emotional-support") return;
 
+    // The breathing guide advances one second at a time so the visual, label,
+    // and countdown stay in sync without introducing extra animation libraries.
     const timer = window.setTimeout(() => {
       if (breathingSecondsRemaining > 1) {
         setBreathingSecondsRemaining((current) => current - 1);
@@ -241,6 +246,9 @@ export default function SupportNowPage() {
       .filter(Boolean)
       .join(" ");
 
+    // Quick Log intentionally maps into the normal entry schema. That means a
+    // stressful-moment log immediately shows up everywhere the main history is
+    // used: dashboard, trends, analytics, report, and Q&A.
     addEntry({
       createdAt: timestamp,
       glucose: quickLogForm.currentGlucose
@@ -266,6 +274,8 @@ export default function SupportNowPage() {
   function handleFeelingsSave() {
     if (!isClientReady) return;
 
+    // Emotional notes are stored separately so users can reflect privately
+    // without adding non-analytic data directly into glucose history.
     addSupportEpisode({
       createdAt: new Date().toISOString(),
       currentGlucose: null,

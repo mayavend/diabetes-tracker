@@ -1,3 +1,5 @@
+// Local entry storage for the main glucose history used across dashboard,
+// trends, reports, insights, and edit/delete flows.
 export const READING_TYPES = [
   "Fasting",
   "Before Meal",
@@ -7,6 +9,9 @@ export const READING_TYPES = [
 
 export type ReadingType = (typeof READING_TYPES)[number];
 
+// This is the canonical data shape for tracked health entries in the app.
+// Quick Log support entries are normalized into this same schema so they
+// automatically participate in the normal analytics/reporting pipeline.
 export type Entry = {
   id: string;
   createdAt: string;
@@ -43,6 +48,8 @@ function normalizeEntry(raw: unknown): Entry | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
 
+  // Older or partial local data falls back to safe defaults so the UI keeps
+  // working even if the saved shape changes over time.
   const createdAt = toText(record.createdAt) || new Date().toISOString();
   const timestamp = toText(record.timestamp) || createdAt;
   const id = toText(record.id) || crypto.randomUUID();
@@ -84,6 +91,8 @@ export function writeEntries(entries: Entry[]) {
 }
 
 export function saveEntry(entry: Entry): Entry[] {
+  // New entries are prepended so every screen can treat the history as
+  // newest-first without extra reordering at write time.
   const existing = getEntries();
   const updated = [entry, ...existing];
   return writeEntries(updated);

@@ -1,3 +1,6 @@
+// Rule-based Q&A layer for answering natural-language questions without an
+// external model. Each answer tries to combine a direct response, evidence from
+// saved entries, and a practical next step.
 import { computeGlucoseAnalytics } from "@/lib/analytics";
 import { Entry } from "@/lib/entries";
 
@@ -74,6 +77,8 @@ function findLowestEntry(entries: Entry[]) {
 }
 
 function detectIntent(question: string): QuestionIntent {
+  // Intent matching stays lightweight on purpose. The app is local-only, so
+  // exact/near-exact phrase buckets are easier to reason about and test.
   if (
     question.includes("what should i do in the future to avoid a spike") ||
     question.includes("avoid a spike") ||
@@ -143,6 +148,8 @@ function composeAnswer(parts: {
 }
 
 function buildGentleSpikeTodayAnswer(analytics: Analytics) {
+  // For "today" spike questions, prefer the last 24 hours first and only fall
+  // back to the last week if today does not yet have a logged glucose value.
   const todayEntries = getRecentGlucoseEntries(analytics.sortedEntries, 1);
   const recentWeekEntries = getRecentGlucoseEntries(analytics.sortedEntries, 7);
   const spikeEntry =
@@ -622,6 +629,8 @@ export function answerGlucoseQuestion(question: string, entries: Entry[]) {
 
   const intent = detectIntent(normalizedQuestion);
 
+  // A few exact phrasings get custom responses because they were explicitly
+  // tuned for this class project’s desired tone and behavior.
   if (intent === "avoid-spike") return buildAvoidSpikeAnswer(analytics);
   if (
     normalizedQuestion === "why did my glucose levels spike today?" ||

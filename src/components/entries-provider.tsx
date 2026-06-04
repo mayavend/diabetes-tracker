@@ -1,5 +1,8 @@
 "use client";
 
+// Shared client-side store for the main glucose entry history.
+// Pages read through this provider so create/edit/delete operations stay in sync
+// without each route needing to talk to localStorage directly.
 import {
   createContext,
   useContext,
@@ -41,6 +44,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
     });
 
     function handleStorageChange(event: StorageEvent) {
+      // Keep multiple tabs or routes aligned if localStorage changes elsewhere.
       if (event.key) {
         setEntries(getEntries());
       }

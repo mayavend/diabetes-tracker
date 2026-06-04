@@ -1,3 +1,6 @@
+// Separate local storage for emotional/immediate-support notes.
+// These notes stay out of the main glucose history unless the report layer
+// explicitly includes the user-selected provider-facing subset.
 export const SUPPORT_EPISODES_STORAGE_KEY = "diabeates-support-episodes";
 
 export const FEELING_OPTIONS = [
@@ -11,6 +14,8 @@ export const FEELING_OPTIONS = [
 
 export type FeelingOption = (typeof FEELING_OPTIONS)[number];
 
+// Support episodes intentionally store emotional context separately from
+// normal entries. The report page later filters on includeInDoctorReport.
 export type SupportEpisode = {
   createdAt: string;
   currentGlucose: number | null;
@@ -49,6 +54,8 @@ function normalizeSupportEpisode(raw: unknown): SupportEpisode | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
 
+  // The support feature is prototype-only for now, so malformed local data is
+  // normalized instead of throwing and breaking the rest of the app.
   return {
     createdAt: toText(record.createdAt) || new Date().toISOString(),
     currentGlucose: toNumberOrNull(record.currentGlucose),
@@ -91,6 +98,8 @@ export function getSupportEpisodes(): SupportEpisode[] {
 }
 
 export function saveSupportEpisode(episode: SupportEpisode) {
+  // Newest-first ordering matches the way support notes are shown in the UI
+  // and makes provider-report filtering straightforward.
   const updated = [episode, ...getSupportEpisodes()];
   window.localStorage.setItem(
     SUPPORT_EPISODES_STORAGE_KEY,
