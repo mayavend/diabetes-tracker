@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { SummaryCard } from "@/components/summary-card";
 import {
   ELEVATED_GLUCOSE_THRESHOLD,
   computeGlucoseAnalytics,
   formatMetric,
 } from "@/lib/analytics";
+import { answerGlucoseQuestion } from "@/lib/glucose-qa";
 import { Entry } from "@/lib/entries";
 import { useClientEntries } from "@/lib/use-client-entries";
 
@@ -14,9 +15,30 @@ function getEntryTimestamp(entry: Entry) {
   return entry.timestamp || entry.createdAt;
 }
 
+type ChatMessage = {
+  id: string;
+  role: "assistant" | "user";
+  text: string;
+};
+
+const SUGGESTED_QUESTIONS = [
+  "Why did my glucose spike today?",
+  "What patterns are affecting my glucose?",
+  "Are after-meal readings higher than fasting readings?",
+  "What should I pay attention to this week?",
+];
+
 export default function ReportPage() {
   const { entries, isClientReady } = useClientEntries();
   const [copyMessage, setCopyMessage] = useState("");
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "assistant-welcome",
+      role: "assistant",
+      text: "Ask about your recent glucose patterns, spikes, meal-related readings, or what to focus on this week.",
+    },
+  ]);
   const analytics = computeGlucoseAnalytics(entries);
 
   let weeklySummary =
@@ -66,6 +88,33 @@ export default function ReportPage() {
     if (!isClientReady) return;
     await navigator.clipboard.writeText(reportText);
     setCopyMessage("Report copied to clipboard.");
+  }
+
+  function submitQuestion(nextQuestion: string) {
+    const trimmedQuestion = nextQuestion.trim();
+    if (!trimmedQuestion || !isClientReady) return;
+
+    const response = answerGlucoseQuestion(trimmedQuestion, entries);
+
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        text: trimmedQuestion,
+      },
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: response,
+      },
+    ]);
+    setQuestion("");
+  }
+
+  function handleQuestionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitQuestion(question);
   }
 
   return (
@@ -211,6 +260,59 @@ export default function ReportPage() {
         ) : (
           <p className="mt-4 text-sm text-slate-500">Loading insights...</p>
         )}
+      </section>
+
+      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-semibold">Glucose Q&amp;A</h3>
+        <p className="mt-2 text-sm text-slate-600">
+          Ask simple questions about your saved entries and recent patterns.
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {SUGGESTED_QUESTIONS.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => submitQuestion(suggestion)}
+              disabled={!isClientReady}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={
+                message.role === "user"
+                  ? "ml-auto max-w-[85%] rounded-xl bg-sky-600 px-4 py-3 text-sm text-white"
+                  : "max-w-[85%] rounded-xl bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+              }
+            >
+              {message.text}
+            </div>
+          ))}
+        </div>
+
+        <form onSubmit={handleQuestionSubmit} className="mt-4 flex gap-3">
+          <input
+            type="text"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="Ask about spikes, patterns, or this week..."
+            className="flex-1 rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
+          />
+          <button
+            type="submit"
+            disabled={!isClientReady || question.trim().length === 0}
+            className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Ask
+          </button>
+        </form>
       </section>
 
       <section className="mt-8">
