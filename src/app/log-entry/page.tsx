@@ -1,5 +1,8 @@
 "use client";
 
+// Main entry form for creating and updating glucose logs.
+// This page is also reused for dashboard edits so new entries and updates share
+// the same validation, timestamp handling, and save behavior.
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
@@ -29,6 +32,8 @@ const initialFormState: FormState = {
   notes: "",
 };
 
+// The datetime-local input expects a local timestamp string rather than a raw
+// ISO value, so the stored date has to be shifted into local browser time.
 function getCurrentTimestampInputValue() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
@@ -67,6 +72,8 @@ export default function LogEntryPage() {
   const [isClientReady, setIsClientReady] = useState(false);
 
   useEffect(() => {
+    // Wait until mount so the default timestamp is generated on the client and
+    // does not create a server/client hydration mismatch.
     const frameId = window.requestAnimationFrame(() => {
       setForm(
         editingEntry
@@ -85,6 +92,8 @@ export default function LogEntryPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    // The saved entry shape matches the shared local-storage schema used by
+    // analytics, trends, reports, dashboard history, and Q&A.
     const entry: Entry = {
       id: editingEntry?.id ?? crypto.randomUUID(),
       createdAt: editingEntry?.createdAt ?? new Date().toISOString(),
@@ -117,6 +126,8 @@ export default function LogEntryPage() {
   }
 
   function handleCancelEdit() {
+    // Cancel returns the form to normal create mode without deleting the saved
+    // entry or changing any local data.
     cancelEditingEntry();
     setForm({
       ...initialFormState,

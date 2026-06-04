@@ -1,5 +1,8 @@
 "use client";
 
+// Small chat-style wrapper for the rule-based glucose Q&A engine.
+// It keeps the UI conversation state local while routing questions through the
+// shared entry history and deterministic response logic.
 import { FormEvent, useState } from "react";
 import { answerGlucoseQuestion } from "@/lib/glucose-qa";
 import { useClientEntries } from "@/lib/use-client-entries";
@@ -36,6 +39,7 @@ export function GlucoseQAPanel({ className = "" }: GlucoseQAPanelProps) {
     const trimmedQuestion = nextQuestion.trim();
     if (!trimmedQuestion || !isClientReady) return;
 
+    // Responses are generated entirely from the saved local entry history.
     const response = answerGlucoseQuestion(trimmedQuestion, entries);
 
     setMessages((current) => [

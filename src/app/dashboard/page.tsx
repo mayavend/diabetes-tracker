@@ -1,5 +1,8 @@
 "use client";
 
+// Dashboard route for the main diaBEATes overview. It combines shared
+// analytics, the insight panel, Q&A entry point, and a manageable slice of
+// recent history with edit/delete actions.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlucoseQAPanel } from "@/components/glucose-qa-panel";
@@ -19,6 +22,8 @@ export default function DashboardPage() {
   const [tableMessage, setTableMessage] = useState("");
   const [showAllEntries, setShowAllEntries] = useState(false);
   const totalEntries = analytics.sortedEntries.length;
+  // The history table stays newest-first, but only shows a small default slice
+  // so the dashboard remains readable on both desktop and mobile.
   const visibleEntries = showAllEntries
     ? analytics.sortedEntries
     : analytics.sortedEntries.slice(0, DEFAULT_VISIBLE_ENTRIES);
@@ -29,6 +34,8 @@ export default function DashboardPage() {
   );
 
   function handleEdit(entry: (typeof analytics.sortedEntries)[number]) {
+    // Editing is routed through the shared log-entry form so the app uses one
+    // consistent create/update flow for saved entries.
     startEditingEntry(entry);
     setTableMessage("");
     router.push("/log-entry");

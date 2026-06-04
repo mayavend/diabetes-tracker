@@ -1,5 +1,8 @@
 "use client";
 
+// Trends route for visualizing saved glucose readings over time.
+// This page turns the shared local history into chart-friendly coordinates and
+// a readable glucose history list without introducing extra chart libraries.
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -25,6 +28,7 @@ type ChartPoint = {
   y: number;
 };
 
+// Short labels keep the x-axis readable when many points are present.
 function formatShortDate(timestamp: string) {
   return new Date(timestamp).toLocaleDateString(undefined, {
     month: "short",
@@ -60,6 +64,8 @@ function getYTicks(minValue: number, maxValue: number) {
   return ticks;
 }
 
+// Only a subset of x-axis labels are shown so the chart stays readable even
+// when the user has logged many entries.
 function getVisibleXAxisIndexes(totalPoints: number) {
   if (totalPoints <= 6) {
     return Array.from({ length: totalPoints }, (_, index) => index);
@@ -117,6 +123,8 @@ export default function TrendsPage() {
     const chartInnerWidth = chartRight - chartLeft;
     const chartInnerHeight = chartBottom - chartTop;
 
+    // Y-axis ticks are padded beyond the observed min/max so the line does not
+    // sit flush against the chart bounds.
     const values = glucoseEntries.map((entry) => entry.glucose);
     const rawMin = Math.min(...values);
     const rawMax = Math.max(...values);
@@ -126,6 +134,8 @@ export default function TrendsPage() {
     const tickRange = Math.max(maxTick - minTick, 1);
 
     const chartPoints = glucoseEntries.map((entry, index) => {
+      // Points are spaced evenly across the x-axis because the chart is meant
+      // as a lightweight trend view rather than a time-density plot.
       const x =
         chartLeft +
         (index * chartInnerWidth) / Math.max(glucoseEntries.length - 1, 1);
