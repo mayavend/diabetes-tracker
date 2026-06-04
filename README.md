@@ -2,15 +2,13 @@
 
 diaBEATes is a prototype diabetes and prediabetes tracking app built as a class project. It is designed to help a user do more than just record numbers. The app combines logging, analytics, report generation, rule-based insights, question answering, and immediate emotional support into a single product system.
 
-This project is not a trained machine learning model. It is an application-focused AI product prototype built to explore how lightweight intelligence, careful UX, and supportive health design can help people better understand glucose patterns and communicate about them.
+This project is an application-focused AI product prototype built to explore how lightweight intelligence, careful UX, and supportive health design can help people better understand glucose patterns and communicate about them.
 
 ## Overview
 
 Many diabetes tools help people log data, but logging by itself is often not enough. A glucose number only becomes useful when the user can place it in context:
 
 - What did I eat?
-- Did I sleep poorly?
-- Was this before a meal or after one?
 - Is this part of a trend or a one-off reading?
 - What should I pay attention to this week?
 - What do I show my doctor?
@@ -127,7 +125,7 @@ Because the app is local-first right now, it works as a prototype without requir
 
 ## How AI Was Used
 
-AI tools were allowed and encouraged for this course, and I used Codex as my primary development tool while still directing the project myself.
+I used Codex as my primary development tool while still directing the project myself.
 
 More specifically:
 
@@ -139,8 +137,6 @@ More specifically:
 - I decided what features stayed, what changed, and what the final product should communicate.
 
 Codex was used to build the product. It helped implement the frontend, refactor the code, and iterate quickly on features and interface changes. However, Codex was not the source of the project idea. I used it as a development tool under my direction, similar to an AI-assisted engineering workflow.
-
-This matters for academic integrity: the project reflects my decisions, prompting, testing, and revision process, even though AI-assisted coding played a major role in implementation.
 
 ## Technical Implementation
 
@@ -186,14 +182,12 @@ The app computes metrics such as:
 
 #### 4. Rule-based intelligence layer
 
-Instead of calling an external LLM API, the current prototype uses deterministic logic to produce:
+The current prototype uses deterministic logic to produce:
 
 - natural-language insights
 - provider summary language
 - Glucose Q&A responses
 - data-informed discussion points for a doctor report
-
-This layer uses structured analytics and saved entries rather than a trained model.
 
 ### Iterative development
 
@@ -214,7 +208,7 @@ That iteration is important to the project because the final result was not buil
 
 ## Evaluation / What I Tested
 
-This project is a prototype, so evaluation focused on product behavior, internal consistency, and iterative refinement rather than formal clinical validation.
+This project is a prototype, so evaluation focused on product behavior, internal consistency, and iterative refinement.
 
 ### What I tested during development
 
@@ -251,9 +245,7 @@ What this work does show:
 What this work does not yet prove:
 
 - clinical usefulness
-- medical accuracy beyond general consumer-facing support language
 - long-term behavior change outcomes
-- comparative advantage over existing commercial diabetes apps
 - usability quality across a broad user population
 
 ## Major Decisions
@@ -271,18 +263,9 @@ I kept the app local and browser-based so I could focus on the core product expe
 
 This made the prototype faster to build and easier to test, though it also limits realism.
 
-### Rule-based intelligence instead of external AI APIs
-
-I intentionally kept the “intelligence” layer local and deterministic for this stage. That made it easier to:
-
-- inspect logic
-- test consistency
-- debug incorrect outputs
-- avoid cost and dependency on paid APIs
-
 ### Product-system framing instead of model-training framing
 
-This project is best understood as an AI-assisted application/product system rather than an ML research model. The interesting work here is not training a model from scratch. It is designing a usable product that connects data entry, analytics, interpretation, support, and communication.
+This project is best understood as an AI-assisted application/product system rather than an ML research model. The interesting work here is designing a usable product that connects data entry, analytics, interpretation, support, and communication.
 
 ### Emotional support as part of diabetes tracking
 
@@ -307,15 +290,12 @@ Most importantly, this app is not a replacement for professional medical advice.
 
 If I continued this project, the next steps would include:
 
+- incorporating a voice-to-text feature
+- having a chat with physician option
 - secure accounts and cloud persistence
-- better report export and real provider-sharing workflow
-- richer datasets and synthetic testing scenarios
-- broader usability testing with non-technical users
 - clinician review of report usefulness and support language
 - comparison against existing diabetes-tracking apps
-- stronger validation of whether the insight and Q&A layers are genuinely helpful
 - more robust accessibility testing
-- possible future integration of a carefully constrained LLM layer for richer explanations, while keeping safety boundaries clear
 
 ## How to Use the App
 
