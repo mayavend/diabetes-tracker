@@ -1,23 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { SummaryCard } from "@/components/summary-card";
+import {
+  ELEVATED_GLUCOSE_THRESHOLD,
+  computeGlucoseAnalytics,
+  formatMetric,
+} from "@/lib/analytics";
 import { Entry, getEntries } from "@/lib/entries";
-
-function formatNumber(value: number | null, suffix = "") {
-  if (value === null || Number.isNaN(value)) return "--";
-  return `${value}${suffix}`;
-}
-
-function formatAverage(value: number | null, digits = 0, suffix = "") {
-  if (value === null || Number.isNaN(value)) return "--";
-  return `${value.toFixed(digits)}${suffix}`;
-}
-
-function getAverage(values: number[]) {
-  if (values.length === 0) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
 
 function getEntryTimestamp(entry: Entry) {
   return entry.timestamp || entry.createdAt;
@@ -26,96 +16,53 @@ function getEntryTimestamp(entry: Entry) {
 export default function ReportPage() {
   const [entries] = useState<Entry[]>(() => getEntries());
   const [copyMessage, setCopyMessage] = useState("");
+  const analytics = computeGlucoseAnalytics(entries);
 
-  const reportData = useMemo(() => {
-    const sortedEntries = [...entries].sort(
-      (a, b) =>
-        new Date(getEntryTimestamp(b)).getTime() -
-        new Date(getEntryTimestamp(a)).getTime(),
-    );
+  let weeklySummary =
+    "There is not enough recent glucose data to compare the last 7 days with the previous 7 days yet.";
 
-    const glucoseEntries = sortedEntries.filter(
-      (entry): entry is Entry & { glucose: number } => entry.glucose !== null,
-    );
-    const glucoseValues = glucoseEntries.map((entry) => entry.glucose);
-    const fastingValues = glucoseEntries
-      .filter((entry) => entry.readingType === "Fasting")
-      .map((entry) => entry.glucose);
-    const sleepValues = sortedEntries
-      .map((entry) => entry.sleepHours)
-      .filter((value): value is number => value !== null);
+  if (
+    analytics.last7DaysAverage !== null ||
+    analytics.previous7DaysAverage !== null
+  ) {
+    const recentSentence =
+      analytics.last7DaysAverage === null
+        ? "No recent 7-day glucose average is available yet."
+        : `The last 7 days averaged ${analytics.last7DaysAverage.toFixed(0)} mg/dL.`;
+    const previousSentence =
+      analytics.previous7DaysAverage === null
+        ? "There is not enough prior 7-day data for a full comparison."
+        : `The previous 7 days averaged ${analytics.previous7DaysAverage.toFixed(0)} mg/dL.`;
+    const trendSentence =
+      analytics.comparison === "not-enough-data"
+        ? "A clear weekly trend is not available yet."
+        : `Overall, glucose ${analytics.comparisonLabel.toLowerCase()} compared with the previous week.`;
 
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    weeklySummary = `${recentSentence} ${previousSentence} ${trendSentence}`;
+  }
 
-    const weeklyEntries = sortedEntries.filter(
-      (entry) => new Date(getEntryTimestamp(entry)).getTime() >= weekAgo.getTime(),
-    );
-    const weeklyGlucoseValues = weeklyEntries
-      .map((entry) => entry.glucose)
-      .filter((value): value is number => value !== null);
-    const weeklySleepValues = weeklyEntries
-      .map((entry) => entry.sleepHours)
-      .filter((value): value is number => value !== null);
-
-    const averageGlucose = getAverage(glucoseValues);
-    const averageFastingGlucose = getAverage(fastingValues);
-    const highestGlucose =
-      glucoseValues.length > 0 ? Math.max(...glucoseValues) : null;
-    const lowestGlucose =
-      glucoseValues.length > 0 ? Math.min(...glucoseValues) : null;
-    const averageSleep = getAverage(sleepValues);
-    const weeklyAverageGlucose = getAverage(weeklyGlucoseValues);
-    const weeklyAverageSleep = getAverage(weeklySleepValues);
-
-    let weeklySummary =
-      "No entries were logged in the last 7 days, so there is not enough recent data for a weekly summary yet.";
-
-    if (weeklyEntries.length > 0) {
-      const glucoseSentence =
-        weeklyAverageGlucose === null
-          ? "No glucose readings were recorded this week."
-          : `Average glucose this week was ${weeklyAverageGlucose.toFixed(0)} mg/dL.`;
-      const sleepSentence =
-        weeklyAverageSleep === null
-          ? "Sleep data was limited this week."
-          : `Average sleep was ${weeklyAverageSleep.toFixed(1)} hours.`;
-      const fastingSentence =
-        fastingValues.length > 0
-          ? `Fasting readings averaged ${getAverage(fastingValues)?.toFixed(0)} mg/dL overall.`
-          : "No fasting reading pattern is available yet.";
-
-      weeklySummary = `${weeklyEntries.length} entries were logged in the last 7 days. ${glucoseSentence} ${sleepSentence} ${fastingSentence}`;
-    }
-
-    const reportText = [
-      "Diabetes Tracker Report",
-      "",
-      `Average Glucose: ${formatAverage(averageGlucose, 0, " mg/dL")}`,
-      `Average Fasting Glucose: ${formatAverage(averageFastingGlucose, 0, " mg/dL")}`,
-      `Highest Glucose: ${formatNumber(highestGlucose, " mg/dL")}`,
-      `Lowest Glucose: ${formatNumber(lowestGlucose, " mg/dL")}`,
-      `Total Entries: ${sortedEntries.length}`,
-      `Average Sleep: ${formatAverage(averageSleep, 1, " hrs")}`,
-      "",
-      "Weekly Summary",
-      weeklySummary,
-    ].join("\n");
-
-    return {
-      sortedEntries,
-      averageGlucose,
-      averageFastingGlucose,
-      highestGlucose,
-      lowestGlucose,
-      averageSleep,
-      weeklySummary,
-      reportText,
-    };
-  }, [entries]);
+  const reportText = [
+    "Diabetes Tracker Report",
+    "",
+    `Average Glucose: ${formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })}`,
+    `Average Fasting Glucose: ${formatMetric(analytics.averageFastingGlucose, { suffix: " mg/dL" })}`,
+    `Average After-Meal Glucose: ${formatMetric(analytics.averageAfterMealGlucose, { suffix: " mg/dL" })}`,
+    `Elevated Readings Above ${ELEVATED_GLUCOSE_THRESHOLD}: ${analytics.elevatedCount}`,
+    `Highest Glucose: ${formatMetric(analytics.highestGlucose, { suffix: " mg/dL" })}`,
+    `Lowest Glucose: ${formatMetric(analytics.lowestGlucose, { suffix: " mg/dL" })}`,
+    `Glucose Range: ${formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}`,
+    `7-Day Average Glucose: ${formatMetric(analytics.last7DaysAverage, { suffix: " mg/dL" })}`,
+    `Previous 7-Day Average Glucose: ${formatMetric(analytics.previous7DaysAverage, { suffix: " mg/dL" })}`,
+    `7-Day Comparison: ${analytics.comparisonLabel}`,
+    `Total Entries: ${analytics.totalEntries}`,
+    `Average Sleep: ${formatMetric(analytics.averageSleep, { digits: 1, suffix: " hrs" })}`,
+    "",
+    "Weekly Summary",
+    weeklySummary,
+  ].join("\n");
 
   async function handleCopyReport() {
-    await navigator.clipboard.writeText(reportData.reportText);
+    await navigator.clipboard.writeText(reportText);
     setCopyMessage("Report copied to clipboard.");
   }
 
@@ -146,34 +93,85 @@ export default function ReportPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
           label="Average Glucose"
-          value={formatAverage(reportData.averageGlucose, 0, " mg/dL")}
+          value={formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })}
         />
         <SummaryCard
           label="Avg Fasting Glucose"
-          value={formatAverage(reportData.averageFastingGlucose, 0, " mg/dL")}
+          value={formatMetric(analytics.averageFastingGlucose, {
+            suffix: " mg/dL",
+          })}
         />
         <SummaryCard
-          label="Highest Glucose"
-          value={formatNumber(reportData.highestGlucose, " mg/dL")}
+          label="Avg After-Meal"
+          value={formatMetric(analytics.averageAfterMealGlucose, {
+            suffix: " mg/dL",
+          })}
         />
         <SummaryCard
-          label="Lowest Glucose"
-          value={formatNumber(reportData.lowestGlucose, " mg/dL")}
+          label="Elevated Readings"
+          value={String(analytics.elevatedCount)}
         />
         <SummaryCard
           label="Total Entries"
-          value={String(reportData.sortedEntries.length)}
+          value={String(analytics.totalEntries)}
         />
         <SummaryCard
           label="Average Sleep"
-          value={formatAverage(reportData.averageSleep, 1, " hrs")}
+          value={formatMetric(analytics.averageSleep, {
+            digits: 1,
+            suffix: " hrs",
+          })}
         />
       </div>
 
       <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-semibold">Glucose Analytics</h3>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <p className="text-sm text-slate-500">Highest Glucose</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">
+              {formatMetric(analytics.highestGlucose, { suffix: " mg/dL" })}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">Lowest Glucose</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">
+              {formatMetric(analytics.lowestGlucose, { suffix: " mg/dL" })}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">Glucose Range</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">
+              {formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">7-Day Average</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">
+              {formatMetric(analytics.last7DaysAverage, { suffix: " mg/dL" })}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">Previous 7-Day Average</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">
+              {formatMetric(analytics.previous7DaysAverage, {
+                suffix: " mg/dL",
+              })}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">Weekly Comparison</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">
+              {analytics.comparisonLabel}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-semibold">Weekly Summary</h3>
         <p className="mt-2 text-sm leading-6 text-slate-700">
-          {reportData.weeklySummary}
+          {weeklySummary}
         </p>
       </section>
 
@@ -190,14 +188,14 @@ export default function ReportPage() {
               </tr>
             </thead>
             <tbody>
-              {reportData.sortedEntries.length === 0 ? (
+              {analytics.sortedEntries.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
                     No entries yet. Add your first log from the Log Entry page.
                   </td>
                 </tr>
               ) : (
-                reportData.sortedEntries.slice(0, 8).map((entry) => (
+                analytics.sortedEntries.slice(0, 8).map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 text-slate-700">
                       {new Date(getEntryTimestamp(entry)).toLocaleString()}
