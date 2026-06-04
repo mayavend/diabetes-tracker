@@ -11,6 +11,8 @@ import {
 } from "@/lib/analytics";
 import { Entry } from "@/lib/entries";
 import { useClientEntries } from "@/lib/use-client-entries";
+import { SupportEpisode } from "@/lib/support-episodes";
+import { useSupportEpisodes } from "@/lib/use-support-episodes";
 
 type SendFormState = {
   doctorEmail: string;
@@ -174,6 +176,7 @@ function getNotableEntries(entries: Entry[]) {
 function getDiscussionPoints(
   analytics: ReturnType<typeof computeGlucoseAnalytics>,
   entries: Entry[],
+  sharedSupportNotes: SupportEpisode[],
 ) {
   const points: string[] = [];
 
@@ -218,6 +221,22 @@ function getDiscussionPoints(
     );
   }
 
+  if (sharedSupportNotes.some((episode) => episode.emotions.length > 0)) {
+    points.push(
+      "Do the patient-reported emotions around concerning episodes suggest a need for more support around stress or anxiety during glucose swings?",
+    );
+  }
+
+  if (
+    sharedSupportNotes.some(
+      (episode) => episode.feelsLike === "low" || episode.feelsLike === "high",
+    )
+  ) {
+    points.push(
+      "Would it help to review the care plan for moments that feel like a low or high, especially when symptoms and readings do not line up clearly?",
+    );
+  }
+
   if (points.length === 0) {
     points.push(
       "Are current tracking habits sufficient, or would more fasting and after-meal checks improve interpretation?",
@@ -233,12 +252,14 @@ function getReportSummaryText({
   discussionPoints,
   providerSummary,
   reportDate,
+  sharedSupportNotes,
 }: {
   analytics: ReturnType<typeof computeGlucoseAnalytics>;
   dateRange: string;
   discussionPoints: string[];
   providerSummary: string[];
   reportDate: string;
+  sharedSupportNotes: SupportEpisode[];
 }) {
   return [
     "diaBEATes Provider Summary",
@@ -255,6 +276,18 @@ function getReportSummaryText({
     `Elevated Readings > ${ELEVATED_GLUCOSE_THRESHOLD}: ${analytics.elevatedCount}`,
     `Glucose Range: ${formatMetric(analytics.glucoseRange, { suffix: " mg/dL" })}`,
     "",
+    "Patient-Reported Thoughts",
+    ...(sharedSupportNotes.length > 0
+      ? sharedSupportNotes.map((episode) => {
+          const emotions =
+            episode.emotions.length > 0
+              ? ` (${episode.emotions.join(", ")})`
+              : "";
+
+          return `- ${new Date(episode.createdAt).toLocaleString()}: ${episode.thoughts}${emotions}`;
+        })
+      : ["- No support notes were marked for provider review."]),
+    "",
     "Questions to Discuss",
     ...discussionPoints.map((point) => `- ${point}`),
   ].join("\n");
@@ -262,35 +295,52 @@ function getReportSummaryText({
 
 export default function ReportPage() {
   const { entries, isClientReady } = useClientEntries();
+  const {
+    isClientReady: isSupportClientReady,
+    supportEpisodes,
+  } = useSupportEpisodes();
   const [copyMessage, setCopyMessage] = useState("");
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [sendForm, setSendForm] = useState<SendFormState>(initialSendFormState);
   const [sendMessage, setSendMessage] = useState("");
   const analytics = computeGlucoseAnalytics(entries);
+  const reportReady = isClientReady && isSupportClientReady;
+  const sharedSupportNotes = supportEpisodes
+    .filter(
+      (episode) =>
+        episode.includeInDoctorReport &&
+        (episode.thoughts.trim() !== "" || episode.emotions.length > 0),
+    )
+    .slice(0, 4);
 
-  const reportDate = isClientReady ? new Date().toLocaleDateString() : "Loading...";
-  const dateRange = isClientReady ? getRangeText(analytics.sortedEntries) : "Loading...";
+  const reportDate = reportReady ? new Date().toLocaleDateString() : "Loading...";
+  const dateRange = reportReady ? getRangeText(analytics.sortedEntries) : "Loading...";
   const providerSummary = getProviderSummary(analytics);
   const keyInsights = getTopInsights(analytics.insights);
   const sleepBehaviorNotes = getSleepBehaviorNotes(analytics, analytics.sortedEntries);
   const notableEntries = getNotableEntries(analytics.sortedEntries);
-  const discussionPoints = getDiscussionPoints(analytics, analytics.sortedEntries);
+  const discussionPoints = getDiscussionPoints(
+    analytics,
+    analytics.sortedEntries,
+    sharedSupportNotes,
+  );
   const reportText = getReportSummaryText({
     analytics,
     dateRange,
     discussionPoints,
     providerSummary,
     reportDate,
+    sharedSupportNotes,
   });
 
   async function handleCopyReport() {
-    if (!isClientReady) return;
+    if (!reportReady) return;
     await navigator.clipboard.writeText(reportText);
     setCopyMessage("Report summary copied.");
   }
 
   function handlePrintPdf() {
-    if (!isClientReady) return;
+    if (!reportReady) return;
     window.print();
   }
 
@@ -350,7 +400,7 @@ export default function ReportPage() {
               <div className="flex items-center justify-between gap-4">
                 <span className="font-medium text-slate-500">Entries Included</span>
                 <span className="font-semibold text-slate-900">
-                  {isClientReady ? analytics.totalEntries : "Loading..."}
+                  {reportReady ? analytics.totalEntries : "Loading..."}
                 </span>
               </div>
             </div>
@@ -360,7 +410,7 @@ export default function ReportPage() {
             <button
               type="button"
               onClick={handlePrintPdf}
-              disabled={!isClientReady}
+              disabled={!reportReady}
               className="rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Download PDF
@@ -368,7 +418,7 @@ export default function ReportPage() {
             <button
               type="button"
               onClick={handlePrepareSend}
-              disabled={!isClientReady}
+              disabled={!reportReady}
               className="rounded-full border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 transition-all duration-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Prepare to Send Report
@@ -376,7 +426,7 @@ export default function ReportPage() {
             <button
               type="button"
               onClick={handleCopyReport}
-              disabled={!isClientReady}
+              disabled={!reportReady}
               className="rounded-full border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Copy Report Summary
@@ -423,7 +473,7 @@ export default function ReportPage() {
               <SummaryCard
                 label="Average Glucose"
                 value={
-                  isClientReady
+                  reportReady
                     ? formatMetric(analytics.averageGlucose, { suffix: " mg/dL" })
                     : "Loading..."
                 }
@@ -431,7 +481,7 @@ export default function ReportPage() {
               <SummaryCard
                 label="Fasting Average"
                 value={
-                  isClientReady
+                  reportReady
                     ? formatMetric(analytics.averageFastingGlucose, {
                         suffix: " mg/dL",
                       })
@@ -441,7 +491,7 @@ export default function ReportPage() {
               <SummaryCard
                 label="After-Meal Average"
                 value={
-                  isClientReady
+                  reportReady
                     ? formatMetric(analytics.averageAfterMealGlucose, {
                         suffix: " mg/dL",
                       })
@@ -460,7 +510,7 @@ export default function ReportPage() {
                 Highest-value findings
               </h2>
               <div className="mt-5 space-y-3">
-                {isClientReady ? (
+                {reportReady ? (
                   keyInsights.map((insight, index) => (
                     <div
                       key={insight}
@@ -502,7 +552,7 @@ export default function ReportPage() {
                   <div>
                     <p className="text-sm text-slate-500">Elevated Readings</p>
                     <p className="mt-1 text-xl font-semibold text-slate-950">
-                      {isClientReady ? analytics.elevatedCount : "Loading..."}
+                      {reportReady ? analytics.elevatedCount : "Loading..."}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       Above {ELEVATED_GLUCOSE_THRESHOLD} mg/dL
@@ -575,13 +625,80 @@ export default function ReportPage() {
 
           <section className="mt-8">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+              Patient-Reported Thoughts
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              Notes chosen for provider review
+            </h2>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {!reportReady ? (
+                <div className="rounded-2xl border border-sky-100 bg-white px-5 py-5 text-sm text-slate-500">
+                  Loading shared support notes...
+                </div>
+              ) : sharedSupportNotes.length === 0 ? (
+                <div className="rounded-2xl border border-sky-100 bg-white px-5 py-5 text-sm text-slate-500">
+                  No support notes have been marked to include in the doctor report.
+                </div>
+              ) : (
+                sharedSupportNotes.map((episode) => (
+                  <div
+                    key={episode.id}
+                    className="rounded-2xl border border-sky-100 bg-white px-5 py-5 shadow-[0_14px_30px_rgba(148,163,184,0.08)]"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
+                        {new Date(episode.createdAt).toLocaleString()}
+                      </span>
+                      <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700">
+                        {episode.feelsLike === "low"
+                          ? "Feels like low"
+                          : episode.feelsLike === "high"
+                            ? "Feels like high"
+                            : "Not sure"}
+                      </span>
+                    </div>
+                    {episode.emotions.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {episode.emotions.map((emotion) => (
+                          <span
+                            key={emotion}
+                            className="rounded-full border border-sky-100 bg-sky-50/70 px-3 py-1 text-xs font-medium text-slate-700"
+                          >
+                            {emotion}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {episode.thoughts ? (
+                      <p className="mt-4 text-sm leading-6 text-slate-700">
+                        {episode.thoughts}
+                      </p>
+                    ) : null}
+                    <div className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+                      {episode.currentGlucose !== null ? (
+                        <p>Glucose at the time: {episode.currentGlucose} mg/dL</p>
+                      ) : null}
+                      {episode.symptoms ? <p>Symptoms: {episode.symptoms}</p> : null}
+                      {episode.recentFood ? (
+                        <p>Recent food: {episode.recentFood}</p>
+                      ) : null}
+                      {episode.notes ? <p>Support note: {episode.notes}</p> : null}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
               Recent Notable Entries
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Selected entries for quick review
             </h2>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              {!isClientReady ? (
+              {!reportReady ? (
                 <div className="rounded-2xl border border-sky-100 bg-white px-5 py-5 text-sm text-slate-500">
                   Loading notable entries...
                 </div>

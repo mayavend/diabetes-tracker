@@ -9,6 +9,7 @@ const navItems = [
   { href: "/log-entry", label: "Log Entry" },
   { href: "/trends", label: "Trends" },
   { href: "/report", label: "Report" },
+  { href: "/support-now", label: "Support Now" },
 ];
 
 export function AppNav() {
