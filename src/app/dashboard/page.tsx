@@ -9,12 +9,24 @@ import { SummaryCard } from "@/components/summary-card";
 import { computeGlucoseAnalytics, formatMetric } from "@/lib/analytics";
 import { useClientEntries } from "@/lib/use-client-entries";
 
+const DEFAULT_VISIBLE_ENTRIES = 10;
+
 export default function DashboardPage() {
   const router = useRouter();
   const { deleteEntry, entries, isClientReady, startEditingEntry } =
     useClientEntries();
   const analytics = computeGlucoseAnalytics(entries);
   const [tableMessage, setTableMessage] = useState("");
+  const [showAllEntries, setShowAllEntries] = useState(false);
+  const totalEntries = analytics.sortedEntries.length;
+  const visibleEntries = showAllEntries
+    ? analytics.sortedEntries
+    : analytics.sortedEntries.slice(0, DEFAULT_VISIBLE_ENTRIES);
+  const shouldShowToggle = totalEntries > DEFAULT_VISIBLE_ENTRIES;
+  const visibleCount = Math.min(
+    showAllEntries ? totalEntries : DEFAULT_VISIBLE_ENTRIES,
+    totalEntries,
+  );
 
   function handleEdit(entry: (typeof analytics.sortedEntries)[number]) {
     startEditingEntry(entry);
@@ -182,6 +194,11 @@ export default function DashboardPage() {
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Recent entries
             </h2>
+            {isClientReady && shouldShowToggle ? (
+              <p className="mt-2 text-sm text-slate-500">
+                Showing {visibleCount} of {totalEntries} entries
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -236,7 +253,7 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ) : (
-                  analytics.sortedEntries.slice(0, 8).map((entry) => (
+                  visibleEntries.map((entry) => (
                     <tr
                       key={entry.id}
                       className="bg-white/70 transition-colors duration-200 hover:bg-sky-50/50"
@@ -289,6 +306,18 @@ export default function DashboardPage() {
             </table>
           </div>
         </Panel>
+
+        {isClientReady && shouldShowToggle ? (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAllEntries((current) => !current)}
+              className="rounded-full border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 shadow-[0_12px_24px_rgba(148,163,184,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-50"
+            >
+              {showAllEntries ? "Show Less" : "Show More"}
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );
