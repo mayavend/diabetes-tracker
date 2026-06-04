@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { PageHeader } from "@/components/page-header";
+import { Panel } from "@/components/panel";
 import { SummaryCard } from "@/components/summary-card";
 import {
   ELEVATED_GLUCOSE_THRESHOLD,
@@ -118,31 +120,32 @@ export default function ReportPage() {
   }
 
   return (
-    <div>
-      <div className="mb-5 flex items-start justify-between gap-4">
+    <div className="pb-10">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">Report</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            A simple summary based on saved local entries.
-          </p>
+          <PageHeader
+            eyebrow="Report"
+            title="Understand your progress in one place"
+            subtitle="Review key analytics, supportive insights, and a smarter glucose Q&A panel built from your own entries."
+          />
         </div>
         <button
           type="button"
           onClick={handleCopyReport}
           disabled={!isClientReady}
-          className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+          className="mt-2 rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Copy Report
         </button>
       </div>
 
       {copyMessage ? (
-        <p className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="mb-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           {copyMessage}
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
           label="Average Glucose"
           value={
@@ -192,8 +195,17 @@ export default function ReportPage() {
         />
       </div>
 
-      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-semibold">Glucose Analytics</h3>
+      <Panel className="mt-8">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+              Analytics
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              Glucose analytics
+            </h2>
+          </div>
+        </div>
         {isClientReady ? (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
@@ -238,58 +250,79 @@ export default function ReportPage() {
         ) : (
           <p className="mt-4 text-sm text-slate-500">Loading report analytics...</p>
         )}
-      </section>
+      </Panel>
 
-      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-semibold">Weekly Summary</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-700">
+      <Panel className="mt-8">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+          Weekly Story
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+          Weekly summary
+        </h2>
+        <p className="mt-4 text-base leading-7 text-slate-700">
           {isClientReady ? weeklySummary : "Loading weekly summary..."}
         </p>
-      </section>
+      </Panel>
 
-      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-semibold">Insights</h3>
+      <Panel className="mt-8">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+          Insight Feed
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+          Insights
+        </h2>
         {isClientReady ? (
-          <div className="mt-4 space-y-3">
-            {analytics.insights.map((insight) => (
-              <p key={insight} className="text-sm leading-6 text-slate-700">
-                {insight}
-              </p>
+          <div className="mt-5 space-y-3">
+            {analytics.insights.map((insight, index) => (
+              <div
+                key={insight}
+                className="rounded-2xl border border-sky-100 bg-gradient-to-r from-sky-50/90 to-white px-4 py-3"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/60">
+                  Insight {index + 1}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{insight}</p>
+              </div>
             ))}
           </div>
         ) : (
           <p className="mt-4 text-sm text-slate-500">Loading insights...</p>
         )}
-      </section>
+      </Panel>
 
-      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-semibold">Glucose Q&amp;A</h3>
-        <p className="mt-2 text-sm text-slate-600">
+      <Panel className="mt-8">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+          Assistant
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+          Glucose Q&amp;A
+        </h2>
+        <p className="mt-3 text-base text-slate-600">
           Ask simple questions about your saved entries and recent patterns.
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-2">
           {SUGGESTED_QUESTIONS.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
               onClick={() => submitQuestion(suggestion)}
               disabled={!isClientReady}
-              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full border border-sky-100 bg-sky-50/80 px-4 py-2 text-sm font-medium text-sky-800 transition-colors duration-200 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {suggestion}
             </button>
           ))}
         </div>
 
-        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-5 space-y-3 rounded-[26px] border border-sky-100 bg-sky-50/50 p-5">
           {messages.map((message) => (
             <div
               key={message.id}
               className={
                 message.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-xl bg-sky-600 px-4 py-3 text-sm text-white"
-                  : "max-w-[85%] rounded-xl bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+                  ? "ml-auto max-w-[88%] rounded-[22px] bg-gradient-to-r from-sky-500 to-blue-500 px-4 py-3 text-sm leading-6 text-white shadow-[0_16px_32px_rgba(14,165,233,0.22)]"
+                  : "max-w-[88%] rounded-[22px] bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-[0_14px_30px_rgba(148,163,184,0.14)]"
               }
             >
               {message.text}
@@ -297,70 +330,92 @@ export default function ReportPage() {
           ))}
         </div>
 
-        <form onSubmit={handleQuestionSubmit} className="mt-4 flex gap-3">
+        <form onSubmit={handleQuestionSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             placeholder="Ask about spikes, patterns, or this week..."
-            className="flex-1 rounded-md border border-slate-300 px-3 py-2 outline-none ring-sky-200 focus:ring"
+            className="flex-1 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-base text-slate-900 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
           />
           <button
             type="submit"
             disabled={!isClientReady || question.trim().length === 0}
-            className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Ask
           </button>
         </form>
-      </section>
+      </Panel>
 
       <section className="mt-8">
-        <h3 className="mb-3 text-lg font-semibold">Most Recent Entries</h3>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-4 py-3 font-medium">Timestamp</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Glucose</th>
-                <th className="px-4 py-3 font-medium">Sleep</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!isClientReady ? (
+        <div className="mb-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+            Reference
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            Most recent entries
+          </h2>
+        </div>
+        <Panel className="overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left">
+              <thead className="bg-sky-50/80 text-slate-500">
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                    Loading recent entries...
-                  </td>
+                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                    Timestamp
+                  </th>
+                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                    Type
+                  </th>
+                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                    Glucose
+                  </th>
+                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                    Sleep
+                  </th>
                 </tr>
-              ) : analytics.sortedEntries.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                    No entries yet. Add your first log from the Log Entry page.
-                  </td>
-                </tr>
-              ) : (
-                analytics.sortedEntries.slice(0, 8).map((entry) => (
-                  <tr key={entry.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 text-slate-700">
-                      {new Date(getEntryTimestamp(entry)).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {entry.readingType || "--"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {entry.glucose ?? "--"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {entry.sleepHours ?? "--"}
+              </thead>
+              <tbody className="divide-y divide-sky-100/80">
+                {!isClientReady ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">
+                      Loading recent entries...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : analytics.sortedEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">
+                      No entries yet. Add your first log from the Log Entry page.
+                    </td>
+                  </tr>
+                ) : (
+                  analytics.sortedEntries.slice(0, 8).map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="bg-white/75 transition-colors duration-200 hover:bg-sky-50/50"
+                    >
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        {new Date(getEntryTimestamp(entry)).toLocaleString()}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
+                          {entry.readingType || "Unspecified"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-medium text-slate-900">
+                        {entry.glucose ?? "--"}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        {entry.sleepHours ?? "--"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       </section>
     </div>
   );
