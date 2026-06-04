@@ -50,3 +50,18 @@ body {
 .text-balance {
   text-wrap: balance;
 }
+
+@media print {
+  html,
+  body {
+    background: white !important;
+  }
+
+  .app-shell::before {
+    display: none;
+  }
+
+  .report-print-root {
+    max-width: 100%;
+  }
+}
