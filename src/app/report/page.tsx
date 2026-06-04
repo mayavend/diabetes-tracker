@@ -198,6 +198,21 @@ export default function ReportPage() {
         </p>
       </section>
 
+      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-semibold">Insights</h3>
+        {isClientReady ? (
+          <div className="mt-4 space-y-3">
+            {analytics.insights.map((insight) => (
+              <p key={insight} className="text-sm leading-6 text-slate-700">
+                {insight}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">Loading insights...</p>
+        )}
+      </section>
+
       <section className="mt-8">
         <h3 className="mb-3 text-lg font-semibold">Most Recent Entries</h3>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
