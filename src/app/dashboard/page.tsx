@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { GlucoseQAPanel } from "@/components/glucose-qa-panel";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { SummaryCard } from "@/components/summary-card";
@@ -70,7 +71,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="mt-8 grid gap-6 xl:grid-cols-[0.9fr_1.25fr]">
         <Panel>
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -87,7 +88,7 @@ export default function DashboardPage() {
           </div>
 
           {isClientReady ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl bg-sky-50/80 p-4">
                 <p className="text-sm font-medium text-slate-500">
                   After-Meal Average
@@ -129,31 +130,47 @@ export default function DashboardPage() {
           )}
         </Panel>
 
-        <Panel>
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
-            Insights
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-            What stands out
-          </h2>
-          {isClientReady ? (
-            <div className="mt-6 space-y-3">
-              {analytics.insights.map((insight, index) => (
-                <div
-                  key={insight}
-                  className="rounded-2xl border border-sky-100 bg-gradient-to-r from-sky-50/90 to-white px-4 py-3"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/60">
-                    Insight {index + 1}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-700">{insight}</p>
-                </div>
-              ))}
+        <div className="grid gap-6">
+          <Panel>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700/70">
+              Insights
+            </p>
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-[2rem] font-semibold tracking-tight text-slate-950">
+                  What stands out right now
+                </h2>
+                <p className="mt-2 max-w-2xl text-base leading-7 text-slate-600">
+                  A larger, clearer read on the habits and signals your recent entries are surfacing.
+                </p>
+              </div>
+              <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700">
+                Key Feature
+              </div>
             </div>
-          ) : (
-            <p className="mt-6 text-sm text-slate-500">Loading personalized insights...</p>
-          )}
-        </Panel>
+            {isClientReady ? (
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                {analytics.insights.map((insight, index) => (
+                  <div
+                    key={insight}
+                    className="rounded-[24px] border border-sky-100 bg-gradient-to-br from-sky-50/95 via-white to-cyan-50/70 px-5 py-5 shadow-[0_16px_34px_rgba(148,163,184,0.08)]"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/60">
+                      Insight {index + 1}
+                    </p>
+                    <p className="mt-3 text-base leading-7 text-slate-700">{insight}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-6 text-sm text-slate-500">Loading personalized insights...</p>
+            )}
+          </Panel>
+
+          <Panel>
+            <GlucoseQAPanel />
+          </Panel>
+        </div>
       </div>
 
       <section className="mt-8">
