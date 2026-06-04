@@ -3,6 +3,7 @@ import { Entry } from "@/lib/entries";
 
 type Analytics = ReturnType<typeof computeGlucoseAnalytics>;
 type QuestionIntent =
+  | "avoid-spike"
   | "spike"
   | "patterns"
   | "comparison"
@@ -74,6 +75,15 @@ function findLowestEntry(entries: Entry[]) {
 
 function detectIntent(question: string): QuestionIntent {
   if (
+    question.includes("what should i do in the future to avoid a spike") ||
+    question.includes("avoid a spike") ||
+    question.includes("prevent a spike") ||
+    question.includes("avoid spikes in the future")
+  ) {
+    return "avoid-spike";
+  }
+
+  if (
     question.includes("spike") ||
     question.includes("high today") ||
     question.includes("why did") ||
@@ -130,6 +140,132 @@ function composeAnswer(parts: {
   return [parts.direct, parts.evidence, parts.nextStep, parts.disclaimer]
     .filter(Boolean)
     .join(" ");
+}
+
+function buildGentleSpikeTodayAnswer(analytics: Analytics) {
+  const todayEntries = getRecentGlucoseEntries(analytics.sortedEntries, 1);
+  const recentWeekEntries = getRecentGlucoseEntries(analytics.sortedEntries, 7);
+  const spikeEntry =
+    findHighestEntry(todayEntries) ??
+    findHighestEntry(recentWeekEntries) ??
+    getLatestEntryWithGlucose(analytics.sortedEntries);
+
+  if (!spikeEntry) {
+    return composeAnswer({
+      direct:
+        "I do not have enough glucose information to explain today’s spike yet, but we can still look for gentle patterns as you keep logging.",
+      nextStep:
+        "A helpful next step could be to log the meal, movement, and sleep around the next reading so the pattern is easier to understand.",
+    });
+  }
+
+  const evidenceParts: string[] = [];
+  let direct = `One possible reason for today’s higher reading is the glucose entry of ${spikeEntry.glucose.toFixed(0)} mg/dL on ${formatTimestamp(spikeEntry)}.`;
+
+  if (spikeEntry.mealNote.trim()) {
+    direct = `One possible reason for today’s spike is the food logged around your ${spikeEntry.glucose.toFixed(0)} mg/dL reading, especially "${spikeEntry.mealNote.trim()}".`;
+    evidenceParts.push(
+      "Foods that are sweeter or heavier in refined carbs may have contributed to a higher reading for some people.",
+    );
+  }
+
+  if (spikeEntry.sleepHours !== null) {
+    evidenceParts.push(
+      `You also logged ${spikeEntry.sleepHours.toFixed(1)} hours of sleep around that time, which may have contributed as an additional factor.`,
+    );
+  }
+
+  if (spikeEntry.exerciseNote.trim()) {
+    evidenceParts.push(
+      `You noted "${spikeEntry.exerciseNote.trim()}" for activity, which is helpful context when looking for patterns.`,
+    );
+  } else {
+    evidenceParts.push(
+      "There is not much movement context logged around that reading, so activity is harder to interpret right now.",
+    );
+  }
+
+  let nextStep =
+    "A helpful next step could be to watch whether similar meals lead to the same pattern, and try pairing them with more protein, fiber, or a short walk afterward.";
+
+  if (spikeEntry.exerciseNote.trim()) {
+    nextStep =
+      "A helpful next step could be to watch whether similar meals lead to the same pattern, and see whether light movement after eating helps smooth out future readings.";
+  } else if (!spikeEntry.mealNote.trim()) {
+    nextStep =
+      "A helpful next step could be to keep logging meals and activity around higher readings so the pattern becomes easier to spot without guessing.";
+  }
+
+  return composeAnswer({
+    direct,
+    evidence: evidenceParts.join(" "),
+    nextStep,
+  });
+}
+
+function buildAvoidSpikeAnswer(analytics: Analytics) {
+  const suggestionParts: string[] = [];
+  const evidenceParts: string[] = [];
+
+  if (
+    analytics.averageAfterMealGlucose !== null &&
+    analytics.averageFastingGlucose !== null &&
+    analytics.averageAfterMealGlucose > analytics.averageFastingGlucose
+  ) {
+    evidenceParts.push(
+      `In your recorded data, after-meal readings are averaging ${analytics.averageAfterMealGlucose.toFixed(0)} mg/dL compared with ${analytics.averageFastingGlucose.toFixed(0)} mg/dL for fasting readings.`,
+    );
+    suggestionParts.push(
+      "keep an eye on meals that are heavier in sweets or refined carbs and notice whether they lead to similar spikes",
+    );
+  }
+
+  const mealLinkedEntry = analytics.sortedEntries.find(
+    (entry) => entry.glucose !== null && entry.mealNote.trim() !== "",
+  );
+  if (mealLinkedEntry?.mealNote.trim()) {
+    evidenceParts.push(
+      `One recent meal note in your log is "${mealLinkedEntry.mealNote.trim()}," which may be worth watching if similar meals tend to be followed by higher readings.`,
+    );
+  }
+
+  const exerciseEntry = analytics.sortedEntries.find(
+    (entry) => entry.exerciseNote.trim() !== "",
+  );
+  if (exerciseEntry) {
+    suggestionParts.push(
+      "build in light movement or extra steps after meals when you can",
+    );
+    evidenceParts.push(
+      `You already log activity notes like "${exerciseEntry.exerciseNote.trim()}," so movement is something you can keep using as a pattern to compare.`,
+    );
+  } else {
+    suggestionParts.push(
+      "try a short walk or some light movement after meals and see whether it changes the pattern",
+    );
+  }
+
+  if (analytics.averageSleep !== null && analytics.averageSleep < 7) {
+    suggestionParts.push("notice whether lower-sleep days also tend to run higher");
+    evidenceParts.push(
+      `Your recorded sleep average is ${analytics.averageSleep.toFixed(1)} hours, so sleep may be one possible factor to keep in mind too.`,
+    );
+  }
+
+  if (suggestionParts.length === 0) {
+    suggestionParts.push(
+      "focus on meal balance and a little movement after eating",
+    );
+  }
+
+  return composeAnswer({
+    direct:
+      "Looking ahead, two helpful things to focus on are movement and meal balance.",
+    evidence: evidenceParts.slice(0, 3).join(" "),
+    nextStep: `It may help to ${suggestionParts
+      .slice(0, 3)
+      .join(", and ")}. Small changes are enough to start learning what works best for you.`,
+  });
 }
 
 function buildSpikeAnswer(analytics: Analytics) {
@@ -486,6 +622,14 @@ export function answerGlucoseQuestion(question: string, entries: Entry[]) {
 
   const intent = detectIntent(normalizedQuestion);
 
+  if (intent === "avoid-spike") return buildAvoidSpikeAnswer(analytics);
+  if (
+    normalizedQuestion === "why did my glucose levels spike today?" ||
+    normalizedQuestion === "why did my glucose spike today?" ||
+    normalizedQuestion.includes("glucose levels spike today")
+  ) {
+    return buildGentleSpikeTodayAnswer(analytics);
+  }
   if (intent === "spike") return buildSpikeAnswer(analytics);
   if (intent === "patterns") return buildPatternAnswer(analytics);
   if (intent === "comparison") return buildComparisonAnswer(analytics);
